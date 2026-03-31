@@ -1,4 +1,3 @@
-from flask import redirect
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import sqlite3
@@ -6,6 +5,7 @@ import pandas as pd
 import io
 import base64
 import matplotlib.pyplot as plt
+import os
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
@@ -19,7 +19,6 @@ def init_db():
     conn = sqlite3.connect("project.db")
     cursor = conn.cursor()
 
-    # Activity table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS activity (
         user_id INTEGER,
@@ -32,7 +31,6 @@ def init_db():
     )
     """)
 
-    # Users table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,7 +39,6 @@ def init_db():
     )
     """)
 
-    # Friends table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS friends (
         user_id INTEGER,
@@ -54,19 +51,29 @@ def init_db():
 
 init_db()
 
-# -------------------- ML MODEL --------------------
-df_data = pd.read_csv("dataset.csv")
+# -------------------- ML MODEL (LAZY LOAD) --------------------
+model_personality = None
+vectorizer = None
 
-texts = df_data["text"]
-labels = df_data["label"]
+def load_model():
+    global model_personality, vectorizer
 
-vectorizer = TfidfVectorizer()
-X_text = vectorizer.fit_transform(texts)
+    if model_personality is None:
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(BASE_DIR, "dataset.csv")
 
-model_personality = LogisticRegression(max_iter=1000)
-model_personality.fit(X_text, labels)
+        df_data = pd.read_csv(path)
 
-# -------------------- HELPER --------------------
+        texts = df_data["text"]
+        labels = df_data["label"]
+
+        vectorizer = TfidfVectorizer()
+        X_text = vectorizer.fit_transform(texts)
+
+        model_personality = LogisticRegression(max_iter=1000)
+        model_personality.fit(X_text, labels)
+
+# -------------------- HELPERS --------------------
 def calculate_score(screen, sleep, study, stress):
     score = (study * 10) + (sleep * 5) - (screen * 3) - (stress * 2)
     return max(0, min(score, 100))
@@ -97,7 +104,7 @@ def generate_plot(user_id):
     if df.empty:
         return None
 
-    df["date"] = pd.to_datetime(df["date"], errors='coerce',utc=True)
+    df["date"] = pd.to_datetime(df["date"], errors='coerce')
     df = df.dropna()
 
     df = df.groupby(df["date"].dt.date)["score"].mean().reset_index()
@@ -143,19 +150,12 @@ def signup():
         return jsonify({"message": "User exists"})
 
     except Exception as e:
-        print("ERROR:", str(e))
         return jsonify({"message": "Server error", "error": str(e)}), 500
-@app.route("/dashboard")
-def dashboard():
-    return render_template("dashboard.html")
 
 @app.route("/login", methods=["POST"])
 def login():
     try:
         data = request.get_json(force=True)
-
-        if not data:
-            return jsonify({"message": "No data"}), 400
 
         username = data.get("username")
         password = data.get("password")
@@ -172,23 +172,22 @@ def login():
         conn.close()
 
         if user:
-            return jsonify({
-                "message": "Login success",
-                "user_id": user[0]
-            })
+            return jsonify({"message": "Login success", "user_id": user[0]})
         else:
             return jsonify({"message": "Login failed"})
 
     except Exception as e:
-        return jsonify({
-            "message": "Server error",
-            "error": str(e)
-        }), 500
+        return jsonify({"message": "Server error", "error": str(e)}), 500
 
-# -------------------- FRIEND SYSTEM --------------------
+@app.route("/dashboard")
+def dashboard():
+    return render_template("dashboard.html")
+
+# -------------------- FRIEND --------------------
 @app.route("/add_friend", methods=["POST"])
 def add_friend():
-    data = request.json
+    data = request.get_json(force=True)
+
     conn = sqlite3.connect("project.db")
     cursor = conn.cursor()
 
@@ -197,12 +196,13 @@ def add_friend():
 
     conn.commit()
     conn.close()
+
     return jsonify({"message": "Friend added"})
 
 # -------------------- LEADERBOARD --------------------
 @app.route("/leaderboard", methods=["POST"])
 def leaderboard():
-    user_id = request.json["user_id"]
+    user_id = request.get_json(force=True)["user_id"]
 
     conn = sqlite3.connect("project.db")
 
@@ -225,16 +225,17 @@ def leaderboard():
 # -------------------- ANALYZE --------------------
 @app.route("/analyze", methods=["POST"])
 def analyze():
-    data = request.json
-    user_id = data["user_id"]
+    data = request.get_json(force=True)
 
+    load_model()
+
+    user_id = data["user_id"]
     screen = float(data["screen_time"])
     sleep = float(data["sleep"])
     study = float(data["study"])
     stress = float(data["stress"])
     text = data["text"]
 
-    # ML prediction
     vec = vectorizer.transform([text])
     pred = model_personality.predict(vec)[0]
     prob = model_personality.predict_proba(vec).max()
@@ -243,6 +244,7 @@ def analyze():
 
     conn = sqlite3.connect("project.db")
     cursor = conn.cursor()
+
     cursor.execute("INSERT INTO activity VALUES (?, ?, ?, ?, ?, ?, ?)",
                    (user_id, screen, sleep, study, stress, score,
                     datetime.now().strftime("%Y-%m-%d")))
@@ -274,6 +276,5 @@ def home():
 
 # -------------------- MAIN --------------------
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
