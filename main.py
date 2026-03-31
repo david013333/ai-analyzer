@@ -244,12 +244,14 @@ def analyze():
 
     load_model()
 
-    user_id = data["user_id"]
-    screen = float(data["screen_time"])
-    sleep = float(data["sleep"])
-    study = float(data["study"])
-    stress = float(data["stress"])
-    text = data["text"]
+    user_id = data.get("user_id")
+
+    screen = float(data.get("screen_time") or 0)
+    sleep = float(data.get("sleep") or 0)
+    study = float(data.get("study") or 0)
+    stress = float(data.get("stress") or 0)
+
+    text = data.get("text") or ""
 
     vec = vectorizer.transform([text])
     pred = model_personality.predict(vec)[0]

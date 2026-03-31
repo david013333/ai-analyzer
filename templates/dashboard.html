@@ -69,20 +69,31 @@
     <img id="graph" width="100%">
 
 </div>
-
 <script>
 async function analyze() {
+
+    let screen = document.getElementById("screen").value;
+    let sleep = document.getElementById("sleep").value;
+    let study = document.getElementById("study").value;
+    let stress = document.getElementById("stress").value;
+    let text = document.getElementById("text").value;
+
+    // 🚨 VALIDATION
+    if (!screen || !sleep || !study || !stress || !text) {
+        alert("Sab fields fill kar");
+        return;
+    }
 
     const res = await fetch("/analyze", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
             user_id: localStorage.getItem("user_id"),
-            screen_time: document.getElementById("screen").value,
-            sleep: document.getElementById("sleep").value,
-            study: document.getElementById("study").value,
-            stress: document.getElementById("stress").value,
-            text: document.getElementById("text").value
+            screen_time: screen,
+            sleep: sleep,
+            study: study,
+            stress: stress,
+            text: text
         })
     });
 
@@ -99,6 +110,5 @@ async function analyze() {
     }
 }
 </script>
-
 </body>
 </html>
