@@ -117,67 +117,73 @@ def generate_plot(user_id):
 # -------------------- AUTH --------------------
 @app.route("/signup", methods=["POST"])
 def signup():
-    data = request.get_json()
-
-    if not data:
-        return jsonify({"message": "No data"}), 400
-
-    username = data.get("username")
-    password = data.get("password")
-
-    if not username or not password:
-        return jsonify({"message": "Missing fields"}), 400
-
-    conn = sqlite3.connect("project.db")
-    cursor = conn.cursor()
-
     try:
+        data = request.get_json(force=True)
+
+        username = data.get("username")
+        password = data.get("password")
+
+        if not username or not password:
+            return jsonify({"message": "Missing fields"}), 400
+
+        conn = sqlite3.connect("project.db")
+        cursor = conn.cursor()
+
         cursor.execute(
             "INSERT INTO users (username, password) VALUES (?, ?)",
             (username, password)
         )
+
         conn.commit()
+        conn.close()
+
         return jsonify({"message": "Signup success"})
 
     except sqlite3.IntegrityError:
         return jsonify({"message": "User exists"})
 
     except Exception as e:
+        print("ERROR:", str(e))
         return jsonify({"message": "Server error", "error": str(e)}), 500
+@app.route("/dashboard")
+def dashboard():
+    return render_template("dashboard.html")
 
-    finally:
-        conn.close()
 @app.route("/login", methods=["POST"])
 def login():
-    data = request.get_json()
-
-    if not data:
-        return jsonify({"message": "No data"}), 400
-
-    username = data.get("username")
-    password = data.get("password")
-
-    conn = sqlite3.connect("project.db")
-    cursor = conn.cursor()
-
     try:
+        data = request.get_json(force=True)
+
+        if not data:
+            return jsonify({"message": "No data"}), 400
+
+        username = data.get("username")
+        password = data.get("password")
+
+        conn = sqlite3.connect("project.db")
+        cursor = conn.cursor()
+
         cursor.execute(
             "SELECT * FROM users WHERE username=? AND password=?",
             (username, password)
         )
 
         user = cursor.fetchone()
+        conn.close()
 
         if user:
-            return jsonify({"message": "Login success", "user_id": user[0]})
+            return jsonify({
+                "message": "Login success",
+                "user_id": user[0]
+            })
         else:
             return jsonify({"message": "Login failed"})
 
     except Exception as e:
-        return jsonify({"message": "Server error", "error": str(e)}), 500
-
-    finally:
-        conn.close()
+        return jsonify({
+            "message": "Server error",
+            "error": str(e)
+        }), 500
 
 # -------------------- FRIEND SYSTEM --------------------
 @app.route("/add_friend", methods=["POST"])
