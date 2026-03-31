@@ -21,7 +21,7 @@
             box-shadow: 0 10px 25px rgba(0,0,0,0.2);
         }
 
-        input, textarea {
+        input {
             width: 100%;
             padding: 10px;
             margin: 6px 0;
@@ -62,25 +62,26 @@
 async function login() {
     const res = await fetch("/login", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: {
+            "Content-Type": "application/json"
+        },
         body: JSON.stringify({
-            username: username.value,
-            password: password.value
+            username: document.getElementById("username").value,
+            password: document.getElementById("password").value
         })
     });
 
     const data = await res.json();
-
-    console.log(data); // debug
+    console.log("LOGIN:", data);
 
     if (data.user_id) {
         localStorage.setItem("user_id", data.user_id);
 
         alert("Login success");
 
-        window.location.href = "/dashboard";  // ✅ REDIRECT
+        window.location.href = "/dashboard";
     } else {
-        alert(data.message);
+        alert(data.message || "Login failed");
     }
 }
 
@@ -88,21 +89,23 @@ async function login() {
 async function signup() {
     const res = await fetch("/signup", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: {
+            "Content-Type": "application/json"
+        },
         body: JSON.stringify({
-            username: username.value,
-            password: password.value
+            username: document.getElementById("username").value,
+            password: document.getElementById("password").value
         })
     });
 
     const data = await res.json();
+    console.log("SIGNUP:", data);
 
     if (data.message === "Signup success") {
         alert("Signup success");
 
-        // optional auto redirect
+        // optional redirect
         window.location.href = "/dashboard";
-
     } else {
         alert(data.message);
     }

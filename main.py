@@ -97,7 +97,7 @@ def generate_plot(user_id):
     if df.empty:
         return None
 
-    df["date"] = pd.to_datetime(df["date"], errors='coerce')
+    df["date"] = pd.to_datetime(df["date"], errors='coerce',utc=True)
     df = df.dropna()
 
     df = df.groupby(df["date"].dt.date)["score"].mean().reset_index()
@@ -221,13 +221,15 @@ def analyze():
     if len(df) >= 2:
         progress = score - df.iloc[-2]["score"]
 
+    graph = generate_plot(user_id)
+
     return jsonify({
         "personality": pred,
         "confidence": round(prob * 100, 2),
         "score": score,
         "progress": progress,
         "suggestion": give_suggestion(pred, score, progress),
-        "graph": f"data:image/png;base64,{generate_plot(user_id)}"
+        "graph": f"data:image/png;base64,{graph}" if graph else None
     })
 
 # -------------------- HOME --------------------
