@@ -39,10 +39,6 @@
             color: white;
             cursor: pointer;
         }
-
-        .hidden {
-            display: none;
-        }
     </style>
 </head>
 
@@ -57,25 +53,6 @@
 
     <button onclick="signup()">Signup</button>
     <button onclick="login()">Login</button>
-
-    <hr>
-
-    <div id="app" class="hidden">
-
-        <h2>🧠 AI Analyzer</h2>
-
-        <textarea id="text" placeholder="How are you feeling?"></textarea>
-
-        <input id="screen" placeholder="Screen Time">
-        <input id="sleep" placeholder="Sleep">
-        <input id="study" placeholder="Study">
-        <input id="stress" placeholder="Stress">
-
-        <button onclick="analyze()">Analyze</button>
-
-        <pre id="result"></pre>
-        <img id="graph" width="100%">
-    </div>
 
 </div>
 
@@ -94,12 +71,12 @@ async function login() {
 
     const data = await res.json();
 
-    if (data.user_id) {
-        localStorage.setItem("user_id", data.user_id);
-
+    if (data.message === "Login success") {
         alert("Login success");
 
-        document.getElementById("app").classList.remove("hidden");
+        // 🔥 REDIRECT TO DASHBOARD
+        window.location.href = "/dashboard";
+
     } else {
         alert("Login failed");
     }
@@ -117,47 +94,16 @@ async function signup() {
     });
 
     const data = await res.json();
-    alert(data.message);
-}
 
-// ---------------- ANALYZE ----------------
-async function analyze() {
+    if (data.message === "Signup success") {
+        alert("Signup success");
 
-    if (!localStorage.getItem("user_id")) {
-        alert("Please login first");
-        return;
+        // optional auto redirect
+        window.location.href = "/dashboard";
+
+    } else {
+        alert(data.message);
     }
-
-    const res = await fetch("/analyze", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-            user_id: localStorage.getItem("user_id"),  // 🔥 IMPORTANT
-            text: text.value,
-            screen_time: screen.value,
-            sleep: sleep.value,
-            study: study.value,
-            stress: stress.value
-        })
-    });
-
-    const data = await res.json();
-
-    result.innerText =
-        "Personality: " + data.personality + "\n" +
-        "Confidence: " + data.confidence + "%\n" +
-        "Score: " + data.score + "\n" +
-        "Progress: " + data.progress + "\n" +
-        "Suggestion: " + data.suggestion;
-
-    if (data.graph) {
-        graph.src = data.graph;
-    }
-}
-
-// AUTO LOGIN IF ALREADY LOGGED
-if (localStorage.getItem("user_id")) {
-    document.getElementById("app").classList.remove("hidden");
 }
 
 </script>

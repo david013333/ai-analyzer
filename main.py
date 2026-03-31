@@ -1,3 +1,4 @@
+from flask import redirect
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import sqlite3
@@ -129,6 +130,9 @@ def signup():
         return jsonify({"message": "User exists"})
     finally:
         conn.close()
+@app.route("/dashboard")
+def dashboard():
+    return render_template("dashboard.html")
 
 @app.route("/login", methods=["POST"])
 def login():
