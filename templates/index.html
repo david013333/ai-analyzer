@@ -71,14 +71,16 @@ async function login() {
 
     const data = await res.json();
 
-    if (data.message === "Login success") {
+    console.log(data); // debug
+
+    if (data.user_id) {
+        localStorage.setItem("user_id", data.user_id);
+
         alert("Login success");
 
-        // 🔥 REDIRECT TO DASHBOARD
-        window.location.href = "/dashboard";
-
+        window.location.href = "/dashboard";  // ✅ REDIRECT
     } else {
-        alert("Login failed");
+        alert(data.message);
     }
 }
 

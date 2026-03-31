@@ -148,7 +148,7 @@ def login():
     if user:
         return jsonify({"message": "Login success", "user_id": user[0]})
     else:
-        return jsonify({"message": "Invalid login"})
+        return jsonify({"message": "Login failed"})
 
 # -------------------- FRIEND SYSTEM --------------------
 @app.route("/add_friend", methods=["POST"])
