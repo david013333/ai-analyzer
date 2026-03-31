@@ -182,6 +182,21 @@ def login():
 @app.route("/dashboard")
 def dashboard():
     return render_template("dashboard.html")
+@app.route("/reset_db")
+def reset_db():
+    conn = sqlite3.connect("project.db")
+    cursor = conn.cursor()
+
+    cursor.execute("DROP TABLE IF EXISTS users")
+    cursor.execute("DROP TABLE IF EXISTS activity")
+    cursor.execute("DROP TABLE IF EXISTS friends")
+
+    conn.commit()
+    conn.close()
+
+    init_db()
+
+    return "DB Reset Done"
 
 # -------------------- FRIEND --------------------
 @app.route("/add_friend", methods=["POST"])
