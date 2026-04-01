@@ -331,6 +331,7 @@ def analyze():
     conn = psycopg2.connect(DATABASE_URL)
     cursor = conn.cursor()
 
+    date = datetime.now().strftime("%Y-%m-%d")
     cursor.execute(
         "INSERT INTO activity (user_id, screen_time, sleep, study, stress, score, date) VALUES (%s, %s, %s, %s, %s, %s, %s)",
         (user_id, screen, sleep, study, stress, score, date)
