@@ -98,9 +98,21 @@ def give_suggestion(personality, score, progress):
 
     return suggestions.get(personality, "") + msg
 
+def predict_score(df):
+    if len(df) < 2:
+        return None
+
+    last = df.iloc[-1]["score"]
+    prev = df.iloc[-2]["score"]
+
+    trend = last - prev
+
+    return round(last + trend, 2)
+
 def generate_plot(user_id):
     if not user_id:
         return None
+
 
     DATABASE_URL = os.environ.get("DATABASE_URL")
     conn = psycopg2.connect(DATABASE_URL)
@@ -322,6 +334,7 @@ def analyze():
         progress = score - df.iloc[-2]["score"]
 
     graph, trend, advice = generate_plot(user_id)
+    predicted = predict_score(df)
 
     return jsonify({
         "personality": pred,
@@ -331,7 +344,8 @@ def analyze():
         "suggestion": give_suggestion(pred, score, progress),
         "graph": f"data:image/png;base64,{graph}" if graph else None,
         "trend": trend,
-        "advice": advice
+        "advice": advice,
+        "prediction": predicted
     })
 
 # -------------------- HOME --------------------
