@@ -3,3 +3,4 @@ flask-cors
 pandas
 matplotlib
 scikit-learn
+psycopg2-binary

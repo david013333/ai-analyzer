@@ -68,6 +68,9 @@
     <h3 id="result"></h3>
     <img id="graph" width="100%">
 
+    <p id="trend"></p>
+    <p id="advice"></p>
+
 </div>
 <script>
 async function analyze() {
@@ -98,6 +101,9 @@ async function analyze() {
     });
 
     const data = await res.json();
+    document.getElementById("graph").src = data.graph || "";
+    document.getElementById("trend").innerText = data.trend;
+    document.getElementById("advice").innerText = data.advice;
 
     document.getElementById("result").innerHTML = `
         Personality: ${data.personality} <br>

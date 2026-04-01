@@ -1,22 +1,25 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
-import sqlite3
 import pandas as pd
 import io
 import base64
 import matplotlib.pyplot as plt
 import os
+import psycopg2
+from flask import session
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from datetime import datetime
 
 app = Flask(__name__)
+app.secret_key="secret123"
 CORS(app)
 
 # -------------------- DATABASE --------------------
 def init_db():
-    conn = sqlite3.connect("project.db")
+    DATABASE_URL = os.environ.get("DATABASE_URL")
+    conn = psycopg2.connect(DATABASE_URL)
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -96,30 +99,72 @@ def give_suggestion(personality, score, progress):
     return suggestions.get(personality, "") + msg
 
 def generate_plot(user_id):
-    conn = sqlite3.connect("project.db")
+    if not user_id:
+        return None
+
+    DATABASE_URL = os.environ.get("DATABASE_URL")
+    conn = psycopg2.connect(DATABASE_URL)
+
     df = pd.read_sql_query(
-        f"SELECT date, score FROM activity WHERE user_id={user_id}", conn)
+        sql="SELECT date, score, screen_time, sleep, study, stress FROM activity WHERE user_id=%s",
+        con=conn,
+        params=(user_id,)
+    )
+
     conn.close()
+    if len(df) >= 2:
+        today_score = df.iloc[-1]['score']
+        yesterday_score = df.iloc[-2]['score']
+
+        if today_score > yesterday_score:
+            trend = "Improving 📈"
+        elif today_score < yesterday_score:
+            trend = "Declining 📉"
+        else:
+            trend = "Same 😐"
+    else:
+        trend = "Not enough data"
+
+    # --- AI Advice ---
+    latest = df.iloc[-1]
+
+    advice = []
+
+    if latest['screen_time'] > 5:
+        advice.append("Reduce screen time 📱")
+
+    if latest['sleep'] < 6:
+        advice.append("Improve sleep 😴")
+
+    if latest['study'] < 2:
+        advice.append("Study more 📚")
+
+    if latest['stress'] > 7:
+        advice.append("Try to relax 🧘")
+
+    if not advice:
+        advice.append("Good job! Keep it up 👍")
+
+    advice_text = " | ".join(advice)
 
     if df.empty:
         return None
 
-    df["date"] = pd.to_datetime(df["date"], errors='coerce')
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
     df = df.dropna()
 
     df = df.groupby(df["date"].dt.date)["score"].mean().reset_index()
     df["date"] = df["date"].astype(str)
 
-    plt.figure(figsize=(6,4))
+    plt.figure(figsize=(6, 4))
     plt.plot(df["date"], df["score"], marker='o')
 
     img = io.BytesIO()
     plt.savefig(img, format='png')
     img.seek(0)
-    img_b64 = base64.b64encode(img.getvalue()).decode()
-    plt.close()
 
-    return img_b64
+    img_b64 = base64.b64encode(img.getvalue()).decode()
+    return img_b64,trend,advice_text
 
 # -------------------- AUTH --------------------
 @app.route("/signup", methods=["POST"])
@@ -154,30 +199,30 @@ def signup():
 
 @app.route("/login", methods=["POST"])
 def login():
-    try:
-        data = request.get_json(force=True)
+    data = request.get_json()
 
-        username = data.get("username")
-        password = data.get("password")
+    username = data.get("username").lower()
+    password = data.get("password")
 
-        conn = sqlite3.connect("project.db")
-        cursor = conn.cursor()
+    DATABASE_URL = os.environ.get("DATABASE_URL")
+    conn = psycopg2.connect(DATABASE_URL)
+    cursor = conn.cursor()
 
-        cursor.execute(
-            "SELECT * FROM users WHERE username=? AND password=?",
-            (username, password)
-        )
+    cursor.execute(
+        "SELECT id FROM users WHERE username=%s AND password=%s",
+        (username, password)
+    )
 
-        user = cursor.fetchone()
-        conn.close()
+    user = cursor.fetchone()
+    conn.close()
 
-        if user:
-            return jsonify({"message": "Login success", "user_id": user[0]})
-        else:
-            return jsonify({"message": "Login failed"})
-
-    except Exception as e:
-        return jsonify({"message": "Server error", "error": str(e)}), 500
+    if user:
+        session['user_id'] = user[0]  # 🔥 IMPORTANT
+        return jsonify({
+            "message": "Login success"
+        })
+    else:
+        return jsonify({"message": "Login failed"})
 
 @app.route("/dashboard")
 def dashboard():
@@ -261,6 +306,7 @@ def analyze():
 
     conn = sqlite3.connect("project.db")
     cursor = conn.cursor()
+    date=datetime.now().strftime("%Y-%m-%d")
 
     cursor.execute("INSERT INTO activity VALUES (?, ?, ?, ?, ?, ?, ?)",
                    (user_id, screen, sleep, study, stress, score,
@@ -275,7 +321,7 @@ def analyze():
     if len(df) >= 2:
         progress = score - df.iloc[-2]["score"]
 
-    graph = generate_plot(user_id)
+    graph, trend, advice = generate_plot(user_id)
 
     return jsonify({
         "personality": pred,
@@ -283,7 +329,9 @@ def analyze():
         "score": score,
         "progress": progress,
         "suggestion": give_suggestion(pred, score, progress),
-        "graph": f"data:image/png;base64,{graph}" if graph else None
+        "graph": f"data:image/png;base64,{graph}" if graph else None,
+        "trend": trend,
+        "advice": advice
     })
 
 # -------------------- HOME --------------------
