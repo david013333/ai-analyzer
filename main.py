@@ -342,7 +342,7 @@ def analyze():
     conn.commit()
 
     df = pd.read_sql_query(
-        "SELECT score FROM activity WHERE user_id=%s ORDER BY date",
+        "SELECT date, score FROM activity WHERE user_id=%s ORDER BY date",
         conn,
         params=(user_id,)
     )
