@@ -36,7 +36,7 @@ def init_db():
 
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL primary key,
         username TEXT UNIQUE,
         password TEXT
     )
@@ -190,12 +190,13 @@ def signup():
         if not username or not password:
             return jsonify({"message": "Missing fields"}), 400
 
-        conn = sqlite3.connect("project.db")
+        DATABASE_URL = os.environ.get("DATABASE_URL")
+        conn = psycopg2.connect(DATABASE_URL)
         cursor = conn.cursor()
 
         cursor.execute(
-            "INSERT INTO users (username, password) VALUES (?, ?)",
-            (username, password)
+            "INSERT INTO users (username, password) VALUES (%s, %s)",
+            (username.lower(), password)
         )
 
         conn.commit()
@@ -203,7 +204,7 @@ def signup():
 
         return jsonify({"message": "Signup success"})
 
-    except sqlite3.IntegrityError:
+    except psycopg2.errors.UniqueViolation:
         return jsonify({"message": "User exists"})
 
     except Exception as e:
@@ -241,7 +242,8 @@ def dashboard():
     return render_template("dashboard.html")
 @app.route("/reset_db")
 def reset_db():
-    conn = sqlite3.connect("project.db")
+    DATABASE_URL = os.environ.get("DATABASE_URL")
+    conn = psycopg2.connect(DATABASE_URL)
     cursor = conn.cursor()
 
     cursor.execute("DROP TABLE IF EXISTS users")
@@ -260,7 +262,8 @@ def reset_db():
 def add_friend():
     data = request.get_json(force=True)
 
-    conn = sqlite3.connect("project.db")
+    DATABASE_URL = os.environ.get("DATABASE_URL")
+    conn = psycopg2.connect(DATABASE_URL)
     cursor = conn.cursor()
 
     cursor.execute("INSERT INTO friends VALUES (?, ?)",
@@ -276,7 +279,8 @@ def add_friend():
 def leaderboard():
     user_id = request.get_json(force=True)["user_id"]
 
-    conn = sqlite3.connect("project.db")
+    DATABASE_URL = os.environ.get("DATABASE_URL")
+    conn = psycopg2.connect(DATABASE_URL)
 
     query = f"""
     SELECT users.username, MAX(activity.score) as score
@@ -316,17 +320,24 @@ def analyze():
 
     score = calculate_score(screen, sleep, study, stress)
 
-    conn = sqlite3.connect("project.db")
+    DATABASE_URL = os.environ.get("DATABASE_URL")
+    conn = psycopg2.connect(DATABASE_URL)
     cursor = conn.cursor()
-    date=datetime.now().strftime("%Y-%m-%d")
 
-    cursor.execute("INSERT INTO activity VALUES (?, ?, ?, ?, ?, ?, ?)",
-                   (user_id, screen, sleep, study, stress, score,
-                    datetime.now().strftime("%Y-%m-%d")))
+    cursor.execute(
+        "INSERT INTO activity VALUES (%s, %s, %s, %s, %s, %s, %s)",
+        (user_id, screen, sleep, study, stress, score,
+         datetime.now().strftime("%Y-%m-%d"))
+    )
+
     conn.commit()
 
     df = pd.read_sql_query(
-        f"SELECT score FROM activity WHERE user_id={user_id}", conn)
+        "SELECT score FROM activity WHERE user_id=%s ORDER BY date",
+        conn,
+        params=(user_id,)
+    )
+
     conn.close()
 
     progress = 0
