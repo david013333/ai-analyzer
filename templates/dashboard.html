@@ -74,7 +74,13 @@
 </div>
 <script>
 async function analyze() {
+    let user_id = localStorage.getItem("user_id");
 
+    if (!user_id) {
+        alert("Login again");
+        window.location.href = "/";
+        return;
+    }
     let screen = document.getElementById("screen").value;
     let sleep = document.getElementById("sleep").value;
     let study = document.getElementById("study").value;
@@ -91,7 +97,7 @@ async function analyze() {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
-            user_id: localStorage.getItem("user_id"),
+            user_id: parseInt(localStorage.getItem("user_id")),
             screen_time: screen,
             sleep: sleep,
             study: study,

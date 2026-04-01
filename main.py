@@ -195,14 +195,16 @@ def signup():
         cursor = conn.cursor()
 
         cursor.execute(
-            "INSERT INTO users (username, password) VALUES (%s, %s)",
+            "INSERT INTO users (username, password) VALUES (%s, %s) RETURNING id",
             (username.lower(), password)
         )
+
+        new_user_id = cursor.fetchone()[0]  # 🔥 IMPORTANT
 
         conn.commit()
         conn.close()
 
-        return jsonify({"message": "Signup success"})
+        return jsonify({"message": "Signup success","user_id": new_user_id})
 
     except psycopg2.errors.UniqueViolation:
         return jsonify({"message": "User exists"})
@@ -232,7 +234,8 @@ def login():
     if user:
         session['user_id'] = user[0]  # 🔥 IMPORTANT
         return jsonify({
-            "message": "Login success"
+            "message": "Login success",
+            "user_id": user[0]  # 🔥 VERY IMPORTANT
         })
     else:
         return jsonify({"message": "Login failed"})
@@ -306,6 +309,10 @@ def analyze():
     load_model()
 
     user_id = data.get("user_id")
+    try:
+        user_id = int(user_id)
+    except:
+        return jsonify({"error": "Invalid user_id"}), 400
 
     screen = float(data.get("screen_time") or 0)
     sleep = float(data.get("sleep") or 0)
@@ -325,9 +332,8 @@ def analyze():
     cursor = conn.cursor()
 
     cursor.execute(
-        "INSERT INTO activity VALUES (%s, %s, %s, %s, %s, %s, %s)",
-        (user_id, screen, sleep, study, stress, score,
-         datetime.now().strftime("%Y-%m-%d"))
+        "INSERT INTO activity (user_id, screen_time, sleep, study, stress, score, date) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+        (user_id, screen, sleep, study, stress, score, date)
     )
 
     conn.commit()

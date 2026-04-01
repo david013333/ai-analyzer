@@ -99,10 +99,12 @@ async function signup() {
     console.log("SIGNUP:", data);
 
     if (data.message === "Signup success") {
-        alert("Signup success");
+    alert("Signup success");
 
-        // optional redirect
-        window.location.href = "/dashboard";
+    // 🔥 IMPORTANT FIX
+    localStorage.setItem("user_id", data.user_id);
+
+    window.location.href = "/dashboard";
     } else {
         alert(data.message);
     }
