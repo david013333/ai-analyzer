@@ -11,6 +11,7 @@ from flask import session
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from datetime import datetime
+import pytz
 
 app = Flask(__name__)
 app.secret_key="secret123"
@@ -331,7 +332,8 @@ def analyze():
     conn = psycopg2.connect(DATABASE_URL)
     cursor = conn.cursor()
 
-    date = datetime.now().strftime("%Y-%m-%d")
+    ist = pytz.timezone('Asia/Kolkata')
+    date = datetime.now(ist).strftime("%Y-%m-%d %H:%M:%S")
     cursor.execute(
         "INSERT INTO activity (user_id, screen_time, sleep, study, stress, score, date) VALUES (%s, %s, %s, %s, %s, %s, %s)",
         (user_id, screen, sleep, study, stress, score, date)
