@@ -333,7 +333,7 @@ def analyze():
     cursor = conn.cursor()
 
     ist = pytz.timezone('Asia/Kolkata')
-    date = datetime.now(ist).strftime("%Y-%m-%d %H:%M:%S")
+    date = datetime.now(ist).strftime("%Y-%m-%d")
     cursor.execute(
         "INSERT INTO activity (user_id, screen_time, sleep, study, stress, score, date) VALUES (%s, %s, %s, %s, %s, %s, %s)",
         (user_id, screen, sleep, study, stress, score, date)
