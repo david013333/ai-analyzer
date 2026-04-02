@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import pandas as pd
+import numpy as np
 import io
 import base64
 import matplotlib.pyplot as plt
@@ -10,6 +11,9 @@ from flask import session
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import MinMaxScaler
+import joblib
 from datetime import datetime
 import pytz
 
@@ -77,11 +81,148 @@ def load_model():
         model_personality = LogisticRegression(max_iter=1000)
         model_personality.fit(X_text, labels)
 
-# -------------------- HELPERS --------------------
-def calculate_score(screen, sleep, study, stress):
-    score = (study * 10) + (sleep * 5) - (screen * 3) - (stress * 2)
-    return max(0, min(score, 100))
+# -------------------- RANDOM FOREST SCORE MODEL --------------------
+rf_score_model = None
+rf_scaler = None
+RF_MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rf_score_model.pkl")
+RF_SCALER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rf_scaler.pkl")
 
+def rule_based_score(screen, sleep, study, stress):
+    """
+    Original rule-based formula used to generate synthetic training labels.
+    Only used internally to bootstrap the Random Forest — NOT exposed to users.
+    """
+    score = (study * 10) + (sleep * 5) - (screen * 3) - (stress * 2)
+    return max(0.0, min(float(score), 100.0))
+
+def generate_synthetic_training_data(n=2000):
+    """
+    Generates a synthetic dataset covering the full feature space.
+    Used to pre-train the Random Forest before real user data accumulates.
+    """
+    np.random.seed(42)
+    screen = np.random.uniform(0, 12, n)   # hours, 0–12
+    sleep  = np.random.uniform(3, 10, n)   # hours, 3–10
+    study  = np.random.uniform(0, 10, n)   # hours, 0–10
+    stress = np.random.uniform(0, 10, n)   # scale, 0–10
+
+    scores = np.array([
+        rule_based_score(sc, sl, st, sr)
+        for sc, sl, st, sr in zip(screen, sleep, study, stress)
+    ])
+
+    df = pd.DataFrame({
+        "screen_time": screen,
+        "sleep": sleep,
+        "study": study,
+        "stress": stress,
+        "score": scores
+    })
+    return df
+
+def train_rf_model(df: pd.DataFrame):
+    """
+    Trains (or retrains) the Random Forest on the provided DataFrame.
+    Saves model + scaler to disk for fast future loading.
+    """
+    global rf_score_model, rf_scaler
+
+    features = ["screen_time", "sleep", "study", "stress"]
+    X = df[features].values
+    y = df["score"].values
+
+    scaler = MinMaxScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    rf = RandomForestRegressor(
+        n_estimators=200,
+        max_depth=10,
+        min_samples_split=5,
+        random_state=42,
+        n_jobs=-1
+    )
+    rf.fit(X_scaled, y)
+
+    rf_score_model = rf
+    rf_scaler = scaler
+
+    joblib.dump(rf, RF_MODEL_PATH)
+    joblib.dump(scaler, RF_SCALER_PATH)
+
+def load_rf_model():
+    """
+    Loads the Random Forest from disk if available.
+    If not, trains a fresh one using synthetic + existing DB data.
+    """
+    global rf_score_model, rf_scaler
+
+    if rf_score_model is not None:
+        return  # already loaded in memory
+
+    if os.path.exists(RF_MODEL_PATH) and os.path.exists(RF_SCALER_PATH):
+        rf_score_model = joblib.load(RF_MODEL_PATH)
+        rf_scaler      = joblib.load(RF_SCALER_PATH)
+        return
+
+    # First run — bootstrap with synthetic data + any existing DB rows
+    df_train = generate_synthetic_training_data(n=2000)
+
+    try:
+        DATABASE_URL = os.environ.get("DATABASE_URL")
+        if DATABASE_URL:
+            conn = psycopg2.connect(DATABASE_URL)
+            df_db = pd.read_sql_query(
+                "SELECT screen_time, sleep, study, stress, score FROM activity WHERE score IS NOT NULL",
+                conn
+            )
+            conn.close()
+            if not df_db.empty:
+                df_train = pd.concat([df_train, df_db], ignore_index=True)
+    except Exception:
+        pass  # DB not ready yet; synthetic data is sufficient
+
+    train_rf_model(df_train)
+
+def retrain_rf_with_db():
+    """
+    Called after every new activity insert so the model continuously
+    learns from real user data accumulated in the database.
+    """
+    try:
+        DATABASE_URL = os.environ.get("DATABASE_URL")
+        conn = psycopg2.connect(DATABASE_URL)
+        df_db = pd.read_sql_query(
+            "SELECT screen_time, sleep, study, stress, score FROM activity WHERE score IS NOT NULL",
+            conn
+        )
+        conn.close()
+
+        if len(df_db) < 10:
+            return  # Not enough real data yet; keep existing model
+
+        df_synthetic = generate_synthetic_training_data(n=500)  # smaller blend
+        df_combined  = pd.concat([df_synthetic, df_db], ignore_index=True)
+        train_rf_model(df_combined)
+    except Exception:
+        pass  # Silently skip; existing model remains active
+
+def calculate_score(screen, sleep, study, stress):
+    """
+    UPGRADED: Uses Random Forest to predict the wellness score.
+    Falls back to the rule-based formula if the model is unavailable.
+    """
+    try:
+        load_rf_model()
+        features = np.array([[screen, sleep, study, stress]], dtype=float)
+        features_scaled = rf_scaler.transform(features)
+        predicted = rf_score_model.predict(features_scaled)[0]
+        return round(max(0.0, min(float(predicted), 100.0)), 2)
+    except Exception:
+        # Graceful fallback to original rule-based formula
+        score = (study * 10) + (sleep * 5) - (screen * 3) - (stress * 2)
+        return round(max(0.0, min(float(score), 100.0)), 2)
+
+# -------------------- HELPERS --------------------
 def give_suggestion(personality, score, progress):
     suggestions = {
         "Introvert": "Try socializing a bit every day.",
@@ -167,10 +308,12 @@ def generate_plot(user_id):
     df = df.dropna()
 
     df = df.groupby(df["date"].dt.date)["score"].mean().reset_index()
-    df["date"] = df["date"].astype(str)
+    df["date"] = pd.to_datetime(df["date"])
 
     plt.figure(figsize=(6, 4))
     plt.plot(df["date"], df["score"], marker='o')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
 
     img = io.BytesIO()
     plt.savefig(img, format='png')
@@ -326,6 +469,7 @@ def analyze():
     pred = model_personality.predict(vec)[0]
     prob = model_personality.predict_proba(vec).max()
 
+    # ---- UPGRADED: Random Forest predicts the score ----
     score = calculate_score(screen, sleep, study, stress)
 
     DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -348,6 +492,9 @@ def analyze():
     )
 
     conn.close()
+
+    # Retrain RF with the newly saved data point (non-blocking best-effort)
+    retrain_rf_with_db()
 
     progress = 0
     if len(df) >= 2:
@@ -375,5 +522,6 @@ def home():
 
 # -------------------- MAIN --------------------
 if __name__ == "__main__":
+    load_rf_model()   # Pre-warm the Random Forest at startup
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
