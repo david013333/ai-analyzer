@@ -308,7 +308,7 @@ def generate_plot(user_id):
     df = df.dropna()
 
     df = df.groupby(df["date"].dt.date)["score"].mean().reset_index()
-    df["date"] = pd.to_datetime(df["date"])
+    df["date"] = df["date"].astype(str)
 
     plt.figure(figsize=(6, 4))
     plt.plot(df["date"], df["score"], marker='o')
