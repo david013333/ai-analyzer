@@ -57,10 +57,10 @@
 
     <h2>🔥 AI Analyzer Dashboard</h2>
 
-    <input id="screen" placeholder="Screen Time (hrs)">
-    <input id="sleep" placeholder="Sleep (hrs)">
-    <input id="study" placeholder="Study (hrs)">
-    <input id="stress" placeholder="Stress (1-10)">
+    <input id="screen" type="number" min="0" max="24" placeholder="Screen Time (hrs)">
+    <input id="sleep" type="number" min="0" max="24" placeholder="Sleep (hrs)">
+    <input id="study" type="number" min="0" max="24" placeholder="Study (hrs)">
+    <input id="stress" type="number" min="1" max="10" placeholder="Stress (1-10)">
     <textarea id="text" placeholder="Write something..."></textarea>
 
     <button onclick="analyze()">Analyze</button>

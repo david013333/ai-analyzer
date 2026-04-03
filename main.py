@@ -10,8 +10,8 @@ import psycopg2
 from flask import session
 
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.preprocessing import MinMaxScaler
 import joblib
 from datetime import datetime
@@ -88,23 +88,15 @@ RF_MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rf_sco
 RF_SCALER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rf_scaler.pkl")
 
 def rule_based_score(screen, sleep, study, stress):
-    """
-    Original rule-based formula used to generate synthetic training labels.
-    Only used internally to bootstrap the Random Forest — NOT exposed to users.
-    """
     score = (study * 10) + (sleep * 5) - (screen * 3) - (stress * 2)
     return max(0.0, min(float(score), 100.0))
 
 def generate_synthetic_training_data(n=2000):
-    """
-    Generates a synthetic dataset covering the full feature space.
-    Used to pre-train the Random Forest before real user data accumulates.
-    """
     np.random.seed(42)
-    screen = np.random.uniform(0, 12, n)   # hours, 0–12
-    sleep  = np.random.uniform(3, 10, n)   # hours, 3–10
-    study  = np.random.uniform(0, 10, n)   # hours, 0–10
-    stress = np.random.uniform(0, 10, n)   # scale, 0–10
+    screen = np.random.uniform(0, 12, n)
+    sleep  = np.random.uniform(3, 10, n)
+    study  = np.random.uniform(0, 10, n)
+    stress = np.random.uniform(1, 10, n)
 
     scores = np.array([
         rule_based_score(sc, sl, st, sr)
@@ -121,10 +113,6 @@ def generate_synthetic_training_data(n=2000):
     return df
 
 def train_rf_model(df: pd.DataFrame):
-    """
-    Trains (or retrains) the Random Forest on the provided DataFrame.
-    Saves model + scaler to disk for fast future loading.
-    """
     global rf_score_model, rf_scaler
 
     features = ["screen_time", "sleep", "study", "stress"]
@@ -150,21 +138,16 @@ def train_rf_model(df: pd.DataFrame):
     joblib.dump(scaler, RF_SCALER_PATH)
 
 def load_rf_model():
-    """
-    Loads the Random Forest from disk if available.
-    If not, trains a fresh one using synthetic + existing DB data.
-    """
     global rf_score_model, rf_scaler
 
     if rf_score_model is not None:
-        return  # already loaded in memory
+        return
 
     if os.path.exists(RF_MODEL_PATH) and os.path.exists(RF_SCALER_PATH):
         rf_score_model = joblib.load(RF_MODEL_PATH)
         rf_scaler      = joblib.load(RF_SCALER_PATH)
         return
 
-    # First run — bootstrap with synthetic data + any existing DB rows
     df_train = generate_synthetic_training_data(n=2000)
 
     try:
@@ -179,15 +162,11 @@ def load_rf_model():
             if not df_db.empty:
                 df_train = pd.concat([df_train, df_db], ignore_index=True)
     except Exception:
-        pass  # DB not ready yet; synthetic data is sufficient
+        pass
 
     train_rf_model(df_train)
 
 def retrain_rf_with_db():
-    """
-    Called after every new activity insert so the model continuously
-    learns from real user data accumulated in the database.
-    """
     try:
         DATABASE_URL = os.environ.get("DATABASE_URL")
         conn = psycopg2.connect(DATABASE_URL)
@@ -198,19 +177,15 @@ def retrain_rf_with_db():
         conn.close()
 
         if len(df_db) < 10:
-            return  # Not enough real data yet; keep existing model
+            return
 
-        df_synthetic = generate_synthetic_training_data(n=500)  # smaller blend
+        df_synthetic = generate_synthetic_training_data(n=500)
         df_combined  = pd.concat([df_synthetic, df_db], ignore_index=True)
         train_rf_model(df_combined)
     except Exception:
-        pass  # Silently skip; existing model remains active
+        pass
 
 def calculate_score(screen, sleep, study, stress):
-    """
-    UPGRADED: Uses Random Forest to predict the wellness score.
-    Falls back to the rule-based formula if the model is unavailable.
-    """
     try:
         load_rf_model()
         features = np.array([[screen, sleep, study, stress]], dtype=float)
@@ -218,9 +193,158 @@ def calculate_score(screen, sleep, study, stress):
         predicted = rf_score_model.predict(features_scaled)[0]
         return round(max(0.0, min(float(predicted), 100.0)), 2)
     except Exception:
-        # Graceful fallback to original rule-based formula
         score = (study * 10) + (sleep * 5) - (screen * 3) - (stress * 2)
         return round(max(0.0, min(float(score), 100.0)), 2)
+
+# -------------------- INPUT VALIDATION --------------------
+def validate_inputs(screen, sleep, study, stress):
+    """
+    Validates all user inputs before processing.
+    Returns (is_valid: bool, error_message: str | None)
+
+    Rules:
+      1. No negative values allowed
+      2. Each value individually must be <= 24
+      3. Stress must be between 1 and 10
+      4. screen_time + sleep + study <= 24  (can't exceed a full day)
+      5. sleep + study <= 24               (can't logically overlap)
+    """
+    errors = []
+
+    # Rule 1 — No negatives
+    if screen < 0:
+        errors.append("Screen time cannot be negative.")
+    if sleep < 0:
+        errors.append("Sleep hours cannot be negative.")
+    if study < 0:
+        errors.append("Study hours cannot be negative.")
+    if stress < 0:
+        errors.append("Stress cannot be negative.")
+
+    # Rule 2 — Individual cap at 24 hours
+    if screen > 24:
+        errors.append("Screen time cannot exceed 24 hours.")
+    if sleep > 24:
+        errors.append("Sleep cannot exceed 24 hours.")
+    if study > 24:
+        errors.append("Study cannot exceed 24 hours.")
+
+    # Rule 3 — Stress range 1 to 10
+    if stress < 1 or stress > 10:
+        errors.append("Stress must be between 1 and 10.")
+
+    # Rule 4 — Total hours cannot exceed a day
+    total = screen + sleep + study
+    if total > 24:
+        errors.append(
+            f"Total hours (screen {screen}h + sleep {sleep}h + study {study}h = {total}h) "
+            f"cannot exceed 24 hours in a day."
+        )
+
+    # Rule 5 — Sleep and study cannot overlap
+    if sleep + study > 24:
+        errors.append(
+            f"Sleep ({sleep}h) + Study ({study}h) = {sleep + study}h — "
+            f"these cannot overlap beyond 24 hours."
+        )
+
+    if errors:
+        return False, " | ".join(errors)
+
+    return True, None
+
+# -------------------- ML-BASED NEXT DAY PREDICTION --------------------
+"""
+WHY THIS MODEL?
+---------------
+We use a 2-layer approach depending on how many days of data exist per user:
+
+  < 5 rows  → Linear Regression
+              Simple straight-line fit. Works reliably with very few points.
+              Avoids overfitting when data is scarce.
+
+  >= 5 rows → Gradient Boosting Regressor
+              Learns complex, non-linear patterns in score history.
+              Chosen over plain Random Forest because it:
+                - Corrects its own errors tree-by-tree (boosting)
+                - Is more accurate on small sequential datasets
+                - Handles up-and-down score trends better
+
+Features engineered from score history:
+  score_lag1    : yesterday's score           (most recent signal)
+  score_lag2    : day before yesterday        (short memory)
+  score_rolling3: 3-day rolling average       (smooths daily noise)
+  score_trend   : last_score - prev_score     (direction of change)
+
+Old method (replaced):
+  prediction = last_score + (last_score - previous_score)
+  Problem: overshoots badly when scores fluctuate up and down.
+"""
+
+def build_prediction_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Creates lag + rolling features from a user's score history.
+    Input  : df with at least columns [date, score], sorted by date
+    Output : df with engineered feature columns, NaN rows dropped
+    """
+    df = df.copy().sort_values("date").reset_index(drop=True)
+    df["score_lag1"]     = df["score"].shift(1)           # yesterday
+    df["score_lag2"]     = df["score"].shift(2)           # 2 days ago
+    df["score_rolling3"] = df["score"].rolling(3).mean()  # 3-day avg
+    df["score_trend"]    = df["score"].diff()             # direction
+    df = df.dropna()
+    return df
+
+def predict_score(df: pd.DataFrame):
+    """
+    UPGRADED: ML-based next-day score prediction.
+
+    Replaces the old naive formula:
+        prediction = last + (last - previous)
+
+    Now trains a small model on the user's own score history and
+    predicts tomorrow's score using engineered lag features.
+
+    Returns: predicted score (float, clipped 0–100) or None if insufficient data.
+    """
+    if len(df) < 2:
+        return None  # Need at least 2 rows to compute any lag features
+
+    df_feat = build_prediction_features(df)
+
+    if df_feat.empty:
+        return None
+
+    feature_cols = ["score_lag1", "score_lag2", "score_rolling3", "score_trend"]
+
+    X = df_feat[feature_cols].values
+    y = df_feat["score"].values
+
+    # Select model based on available data
+    if len(df_feat) < 5:
+        # Too few points for complex model — use simple linear fit
+        model = LinearRegression()
+    else:
+        # Enough history — Gradient Boosting learns the pattern
+        model = GradientBoostingRegressor(
+            n_estimators=100,
+            max_depth=3,
+            learning_rate=0.1,
+            random_state=42
+        )
+
+    model.fit(X, y)
+
+    # Build tomorrow's feature row using today's known values
+    last_score = df["score"].iloc[-1]
+    prev_score = df["score"].iloc[-2] if len(df) >= 2 else last_score
+    rolling3   = df["score"].tail(3).mean()
+    trend      = last_score - prev_score
+
+    next_features = np.array([[last_score, prev_score, rolling3, trend]])
+    predicted = model.predict(next_features)[0]
+
+    return round(max(0.0, min(float(predicted), 100.0)), 2)
 
 # -------------------- HELPERS --------------------
 def give_suggestion(personality, score, progress):
@@ -240,21 +364,9 @@ def give_suggestion(personality, score, progress):
 
     return suggestions.get(personality, "") + msg
 
-def predict_score(df):
-    if len(df) < 2:
-        return None
-
-    last = df.iloc[-1]["score"]
-    prev = df.iloc[-2]["score"]
-
-    trend = last - prev
-
-    return round(last + trend, 2)
-
 def generate_plot(user_id):
     if not user_id:
         return None
-
 
     DATABASE_URL = os.environ.get("DATABASE_URL")
     conn = psycopg2.connect(DATABASE_URL)
@@ -266,8 +378,9 @@ def generate_plot(user_id):
     )
 
     conn.close()
+
     if len(df) >= 2:
-        today_score = df.iloc[-1]['score']
+        today_score     = df.iloc[-1]['score']
         yesterday_score = df.iloc[-2]['score']
 
         if today_score > yesterday_score:
@@ -279,23 +392,17 @@ def generate_plot(user_id):
     else:
         trend = "Not enough data"
 
-    # --- AI Advice ---
     latest = df.iloc[-1]
-
     advice = []
 
     if latest['screen_time'] > 5:
         advice.append("Reduce screen time 📱")
-
     if latest['sleep'] < 6:
         advice.append("Improve sleep 😴")
-
     if latest['study'] < 2:
         advice.append("Study more 📚")
-
     if latest['stress'] > 7:
         advice.append("Try to relax 🧘")
-
     if not advice:
         advice.append("Good job! Keep it up 👍")
 
@@ -320,7 +427,7 @@ def generate_plot(user_id):
     img.seek(0)
 
     img_b64 = base64.b64encode(img.getvalue()).decode()
-    return img_b64,trend,advice_text
+    return img_b64, trend, advice_text
 
 # -------------------- AUTH --------------------
 @app.route("/signup", methods=["POST"])
@@ -343,12 +450,12 @@ def signup():
             (username.lower(), password)
         )
 
-        new_user_id = cursor.fetchone()[0]  # 🔥 IMPORTANT
+        new_user_id = cursor.fetchone()[0]
 
         conn.commit()
         conn.close()
 
-        return jsonify({"message": "Signup success","user_id": new_user_id})
+        return jsonify({"message": "Signup success", "user_id": new_user_id})
 
     except psycopg2.errors.UniqueViolation:
         return jsonify({"message": "User exists"})
@@ -376,10 +483,10 @@ def login():
     conn.close()
 
     if user:
-        session['user_id'] = user[0]  # 🔥 IMPORTANT
+        session['user_id'] = user[0]
         return jsonify({
             "message": "Login success",
-            "user_id": user[0]  # 🔥 VERY IMPORTANT
+            "user_id": user[0]
         })
     else:
         return jsonify({"message": "Login failed"})
@@ -387,6 +494,7 @@ def login():
 @app.route("/dashboard")
 def dashboard():
     return render_template("dashboard.html")
+
 @app.route("/reset_db")
 def reset_db():
     DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -459,25 +567,30 @@ def analyze():
         return jsonify({"error": "Invalid user_id"}), 400
 
     screen = float(data.get("screen_time") or 0)
-    sleep = float(data.get("sleep") or 0)
-    study = float(data.get("study") or 0)
-    stress = float(data.get("stress") or 0)
+    sleep  = float(data.get("sleep")       or 0)
+    study  = float(data.get("study")       or 0)
+    stress = float(data.get("stress")      or 0)
+
+    # ---- INPUT VALIDATION ----
+    is_valid, error_msg = validate_inputs(screen, sleep, study, stress)
+    if not is_valid:
+        return jsonify({"error": error_msg}), 400
 
     text = data.get("text") or ""
 
-    vec = vectorizer.transform([text])
+    vec  = vectorizer.transform([text])
     pred = model_personality.predict(vec)[0]
     prob = model_personality.predict_proba(vec).max()
 
-    # ---- UPGRADED: Random Forest predicts the score ----
     score = calculate_score(screen, sleep, study, stress)
 
     DATABASE_URL = os.environ.get("DATABASE_URL")
     conn = psycopg2.connect(DATABASE_URL)
     cursor = conn.cursor()
 
-    ist = pytz.timezone('Asia/Kolkata')
+    ist  = pytz.timezone('Asia/Kolkata')
     date = datetime.now(ist).strftime("%Y-%m-%d")
+
     cursor.execute(
         "INSERT INTO activity (user_id, screen_time, sleep, study, stress, score, date) VALUES (%s, %s, %s, %s, %s, %s, %s)",
         (user_id, screen, sleep, study, stress, score, date)
@@ -493,7 +606,6 @@ def analyze():
 
     conn.close()
 
-    # Retrain RF with the newly saved data point (non-blocking best-effort)
     retrain_rf_with_db()
 
     progress = 0
@@ -501,6 +613,8 @@ def analyze():
         progress = score - df.iloc[-2]["score"]
 
     graph, trend, advice = generate_plot(user_id)
+
+    # ---- UPGRADED: ML-based next-day prediction ----
     predicted = predict_score(df)
 
     return jsonify({
@@ -522,6 +636,6 @@ def home():
 
 # -------------------- MAIN --------------------
 if __name__ == "__main__":
-    load_rf_model()   # Pre-warm the Random Forest at startup
+    load_rf_model()
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
