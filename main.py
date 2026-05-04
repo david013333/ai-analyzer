@@ -9,7 +9,7 @@ import os
 import psycopg2
 from flask import session
 
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sentence_transformers import SentenceTransformer
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.preprocessing import MinMaxScaler
@@ -80,12 +80,13 @@ def init_db():
 init_db()
 
 # -------------------- ML MODEL (LAZY LOAD) --------------------
-model_personality = None
-vectorizer = None
+# Replaced TF-IDF + LogisticRegression with SentenceTransformer + LogisticRegression
+sentence_model = None  # all-MiniLM-L6-v2 embedding model
+model_personality = None  # LogisticRegression trained on top of embeddings
 
 
 def load_model():
-    global model_personality, vectorizer
+    global sentence_model, model_personality
 
     if model_personality is None:
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -93,14 +94,15 @@ def load_model():
 
         df_data = pd.read_csv(path)
 
-        texts = df_data["text"]
-        labels = df_data["label"]
+        texts = df_data["text"].tolist()
+        labels = df_data["label"].tolist()
 
-        vectorizer = TfidfVectorizer()
-        X_text = vectorizer.fit_transform(texts)
+        # Load all-MiniLM-L6-v2 and encode training texts
+        sentence_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+        X_embeddings = sentence_model.encode(texts, show_progress_bar=False)
 
         model_personality = LogisticRegression(max_iter=1000)
-        model_personality.fit(X_text, labels)
+        model_personality.fit(X_embeddings, labels)
 
 
 # -------------------- REAL DATASET LOADER --------------------
@@ -663,9 +665,10 @@ def analyze():
 
     text = data.get("text") or ""
 
-    vec = vectorizer.transform([text])
-    pred = model_personality.predict(vec)[0]
-    prob = model_personality.predict_proba(vec).max()
+    # ---- CHANGED: use sentence-transformers instead of TF-IDF ----
+    embedding = sentence_model.encode([text], show_progress_bar=False)
+    pred = model_personality.predict(embedding)[0]
+    prob = model_personality.predict_proba(embedding).max()
 
     score = calculate_score(screen, sleep, study, stress)
 
