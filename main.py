@@ -685,7 +685,7 @@ def analyze():
     )
 
     conn.commit()
-
+    print("data inserted")
     df = pd.read_sql_query(
         "SELECT date, score FROM activity WHERE user_id=%s ORDER BY date",
         conn,
