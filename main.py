@@ -142,7 +142,6 @@ def load_model():
         C=5.0,  # less regularization = learns more
         class_weight='balanced',  # equal importance to all 4 classes
         solver='lbfgs',
-        multi_class='multinomial'
     )
     model_personality.fit(X, labels)
 
