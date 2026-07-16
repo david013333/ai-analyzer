@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>Dashboard</title>
-
     <style>
         body {
             font-family: Arial;
@@ -11,16 +10,19 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             color: white;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
         }
 
         .box {
-            background: rgba(0,0,0,0.25);
+            background: rgba(0, 0, 0, 0.25);
             padding: 25px;
             border-radius: 15px;
             width: 350px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
             text-align: center;
         }
 
@@ -30,6 +32,8 @@
             margin: 6px 0;
             border-radius: 8px;
             border: none;
+            box-sizing: border-box;
+            color: black;
         }
 
         button {
@@ -42,20 +46,47 @@
             color: black;
             font-weight: bold;
             cursor: pointer;
+            font-size: 15px;
+            transition: opacity 0.2s;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
 
         img {
             margin-top: 10px;
             border-radius: 10px;
         }
+
+        #error-msg {
+            color: #ff6b6b;
+            font-size: 13px;
+            margin-top: 8px;
+            min-height: 18px;
+        }
+
+        #wake-banner {
+            background: rgba(255, 200, 0, 0.2);
+            border: 1px solid rgba(255, 200, 0, 0.5);
+            border-radius: 8px;
+            padding: 8px;
+            font-size: 12px;
+            color: #ffe066;
+            margin-bottom: 10px;
+            display: none;
+        }
     </style>
 </head>
 
 <body>
-
 <div class="box">
 
     <h2>🔥 AI Analyzer Dashboard</h2>
+
+    <!-- shown while server is waking up on first load -->
+    <div id="wake-banner">⏳ Server waking up, please wait a moment...</div>
 
     <input id="screen" type="number" min="0" max="24" placeholder="Screen Time (hrs)">
     <input id="sleep" type="number" min="0" max="24" placeholder="Sleep (hrs)">
@@ -63,65 +94,125 @@
     <input id="stress" type="number" min="1" max="10" placeholder="Stress (1-10)">
     <textarea id="text" placeholder="Write something..."></textarea>
 
-    <button onclick="analyze()">Analyze</button>
+    <div id="error-msg"></div>
+
+    <button id="analyzeBtn" onclick="analyze()">Analyze</button>
 
     <h3 id="result"></h3>
-    <img id="graph" width="100%">
+    <img id="graph" width="100%" style="display:none;">
     <h3 id="trend" style="color:white; margin-top:10px;"></h3>
     <p id="advice" style="color:white;"></p>
     <p id="prediction"></p>
 
 </div>
+
 <script>
-async function analyze() {
-    let user_id = localStorage.getItem("user_id");
-
-    if (!user_id) {
-        alert("Login again");
-        window.location.href = "/";
-        return;
-    }
-    let screen = document.getElementById("screen").value;
-    let sleep = document.getElementById("sleep").value;
-    let study = document.getElementById("study").value;
-    let stress = document.getElementById("stress").value;
-    let text = document.getElementById("text").value;
-
-    // 🚨 VALIDATION
-    if (!screen || !sleep || !study || !stress || !text) {
-        alert("Sab fields fill kar");
-        return;
-    }
-
-    const res = await fetch("/analyze", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-            user_id: parseInt(localStorage.getItem("user_id")),
-            screen_time: screen,
-            sleep: sleep,
-            study: study,
-            stress: stress,
-            text: text
-        })
+    /* ── Wake the server as soon as the page loads ── */
+    window.addEventListener("load", () => {
+        const banner = document.getElementById("wake-banner");
+        banner.style.display = "block";
+        fetch("/")
+            .then(() => {
+                banner.style.display = "none";
+            })
+            .catch(() => {
+                banner.style.display = "none";
+            });
     });
 
-    const data = await res.json();
-    document.getElementById("graph").src = data.graph || "";
-    document.getElementById("trend").innerText = data.trend;
-    document.getElementById("advice").innerText = data.advice;
-    document.getElementById("prediction").innerText = "Tomorrow Score ≈ " + data.prediction;
+    async function analyze() {
+        const btn = document.getElementById("analyzeBtn");
+        const errorEl = document.getElementById("error-msg");
 
-    document.getElementById("result").innerHTML = `
-        Personality: ${data.personality} <br>
-        Score: ${data.score} <br>
-        ${data.suggestion}
-    `;
+        /* clear old error */
+        errorEl.innerText = "";
 
-    if (data.graph) {
-        document.getElementById("graph").src = data.graph;
+        /* check login */
+        const user_id = localStorage.getItem("user_id");
+        if (!user_id) {
+            alert("Please log in again.");
+            window.location.href = "/";
+            return;
+        }
+
+        /* read values */
+        const screen = document.getElementById("screen").value.trim();
+        const sleep = document.getElementById("sleep").value.trim();
+        const study = document.getElementById("study").value.trim();
+        const stress = document.getElementById("stress").value.trim();
+        const text = document.getElementById("text").value.trim();
+
+        /* client-side validation */
+        if (!screen || !sleep || !study || !stress || !text) {
+            errorEl.innerText = "⚠️ Please fill in all fields.";
+            return;
+        }
+
+        /* disable button so user can't double-click */
+        btn.disabled = true;
+        btn.innerText = "Analyzing...";
+
+        try {
+            const res = await fetch("/analyze", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    user_id: parseInt(user_id),
+                    screen_time: parseFloat(screen),
+                    sleep: parseFloat(sleep),
+                    study: parseFloat(study),
+                    stress: parseFloat(stress),
+                    text: text
+                })
+            });
+
+            /* handle non-200 HTTP errors */
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                errorEl.innerText = "❌ Error: " + (err.error || res.statusText);
+                return;
+            }
+
+            const data = await res.json();
+
+            /* handle server-side validation errors */
+            if (data.error) {
+                errorEl.innerText = "❌ " + data.error;
+                return;
+            }
+
+            /* show results */
+            document.getElementById("result").innerHTML = `
+                Personality: ${data.personality} <br>
+                Score: ${data.score} <br>
+                ${data.suggestion}
+            `;
+
+            const graphEl = document.getElementById("graph");
+            if (data.graph) {
+                graphEl.src = data.graph;
+                graphEl.style.display = "block";
+            } else {
+                graphEl.style.display = "none";
+            }
+
+            document.getElementById("trend").innerText = data.trend || "";
+            document.getElementById("advice").innerText = data.advice || "";
+            document.getElementById("prediction").innerText =
+                data.prediction != null
+                    ? "Tomorrow Score ≈ " + data.prediction
+                    : "";
+
+        } catch (err) {
+            /* network / fetch failure */
+            errorEl.innerText = "❌ Could not reach server. Please try again.";
+            console.error(err);
+        } finally {
+            /* ALWAYS re-enable the button */
+            btn.disabled = false;
+            btn.innerText = "Analyze";
+        }
     }
-}
 </script>
 </body>
 </html>
