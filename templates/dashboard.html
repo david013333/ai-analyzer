@@ -2,153 +2,636 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Analyzer Dashboard</title>
     <style>
-        body {
-            font-family: Arial;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            color: white;
+        * {
             margin: 0;
-            padding: 20px;
+            padding: 0;
             box-sizing: border-box;
         }
 
-        .box {
-            background: rgba(0, 0, 0, 0.25);
-            padding: 25px;
-            border-radius: 15px;
-            width: 350px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #0f0f1a;
+            color: #e0e0ff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* ── HEADER ── */
+        .header {
+            text-align: center;
+            padding: 20px 0 10px;
+        }
+
+        .header h1 {
+            font-size: 26px;
+            background: linear-gradient(90deg, #a78bfa, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+
+        .header p {
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        /* ── TABS ── */
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 18px 0 20px;
+        }
+
+        .tab {
+            padding: 8px 20px;
+            border-radius: 20px;
+            border: 1px solid #2d2d4e;
+            background: #1a1a2e;
+            color: #9ca3af;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #7c3aed, #2563eb);
+            color: white;
+            border-color: transparent;
+        }
+
+        .tab:hover:not(.active) {
+            border-color: #7c3aed;
+            color: #a78bfa;
+        }
+
+        /* ── PANELS ── */
+        .panel {
+            display: none;
+        }
+
+        .panel.active {
+            display: block;
+        }
+
+        /* ── CARD ── */
+        .card {
+            background: #1a1a2e;
+            border: 1px solid #2d2d4e;
+            border-radius: 16px;
+            padding: 20px;
+            max-width: 480px;
+            margin: 0 auto 16px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #a78bfa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 14px;
+        }
+
+        /* ── INPUTS ── */
+        .input-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .input-wrap {
+            position: relative;
+        }
+
+        .input-wrap label {
+            font-size: 11px;
+            color: #6b7280;
+            display: block;
+            margin-bottom: 4px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input[type="number"], input[type="text"], textarea {
+            width: 100%;
+            padding: 10px 12px;
+            background: #0f0f1a;
+            border: 1px solid #2d2d4e;
+            border-radius: 10px;
+            color: #e0e0ff;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="number"]:focus,
+        input[type="text"]:focus,
+        textarea:focus {
+            border-color: #7c3aed;
+            background: #12122a;
+        }
+
+        textarea {
+            width: 100%;
+            height: 80px;
+            resize: none;
+            margin-top: 10px;
+        }
+
+        /* ── BUTTON ── */
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #7c3aed, #2563eb);
+            color: white;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+            margin-top: 12px;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 13px;
+            width: auto;
+            margin-top: 0;
+            border-radius: 8px;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #7c3aed;
+            color: #a78bfa;
+        }
+
+        .btn-outline:hover {
+            background: #7c3aed22;
+        }
+
+        /* ── WAKE BANNER ── */
+        #wake-banner {
+            background: #2d2200;
+            border: 1px solid #f59e0b44;
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #fbbf24;
+            margin-bottom: 12px;
+            text-align: center;
+            display: none;
+            max-width: 480px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* ── ERROR ── */
+        .error-msg {
+            color: #f87171;
+            font-size: 12px;
+            margin-top: 8px;
+            min-height: 16px;
             text-align: center;
         }
 
-        input, textarea {
-            width: 100%;
-            padding: 10px;
-            margin: 6px 0;
-            border-radius: 8px;
-            border: none;
-            box-sizing: border-box;
-            color: black;
-        }
-
-        button {
-            width: 100%;
-            padding: 10px;
-            margin-top: 8px;
-            border: none;
-            border-radius: 8px;
-            background: #00c6ff;
-            color: black;
-            font-weight: bold;
-            cursor: pointer;
-            font-size: 15px;
-            transition: opacity 0.2s;
-        }
-
-        button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        img {
-            margin-top: 10px;
-            border-radius: 10px;
-        }
-
-        #error-msg {
-            color: #ff6b6b;
-            font-size: 13px;
-            margin-top: 8px;
-            min-height: 18px;
-        }
-
-        #wake-banner {
-            background: rgba(255, 200, 0, 0.2);
-            border: 1px solid rgba(255, 200, 0, 0.5);
-            border-radius: 8px;
-            padding: 8px;
-            font-size: 12px;
-            color: #ffe066;
-            margin-bottom: 10px;
+        /* ── RESULT CARD ── */
+        .result-card {
+            background: #12122a;
+            border: 1px solid #2d2d4e;
+            border-radius: 14px;
+            padding: 16px;
+            max-width: 480px;
+            margin: 0 auto 16px;
             display: none;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #1e1e38;
+        }
+
+        .result-row:last-child {
+            border-bottom: none;
+        }
+
+        .result-label {
+            font-size: 12px;
+            color: #6b7280;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .result-value {
+            font-size: 14px;
+            font-weight: 700;
+            color: #e0e0ff;
+        }
+
+        .badge {
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .badge-purple {
+            background: #7c3aed22;
+            color: #a78bfa;
+            border: 1px solid #7c3aed44;
+        }
+
+        .badge-blue {
+            background: #2563eb22;
+            color: #60a5fa;
+            border: 1px solid #2563eb44;
+        }
+
+        .badge-green {
+            background: #05966922;
+            color: #34d399;
+            border: 1px solid #05966944;
+        }
+
+        .badge-red {
+            background: #dc262622;
+            color: #f87171;
+            border: 1px solid #dc262644;
+        }
+
+        .score-big {
+            font-size: 36px;
+            font-weight: 800;
+            background: linear-gradient(90deg, #a78bfa, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+            padding: 10px 0;
+        }
+
+        .score-sub {
+            text-align: center;
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: -6px;
+            margin-bottom: 8px;
+        }
+
+        /* ── GRAPH ── */
+        #graph {
+            width: 100%;
+            border-radius: 10px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        /* ── FRIENDS ── */
+        .search-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .search-row input {
+            flex: 1;
+        }
+
+        .friend-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            background: #0f0f1a;
+            border: 1px solid #2d2d4e;
+            border-radius: 10px;
+            margin-bottom: 8px;
+        }
+
+        .friend-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #7c3aed, #2563eb);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            color: white;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+
+        .friend-info {
+            flex: 1;
+        }
+
+        .friend-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #e0e0ff;
+        }
+
+        .friend-sub {
+            font-size: 11px;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        /* ── LEADERBOARD ── */
+        .lb-row {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            background: #0f0f1a;
+            border: 1px solid #2d2d4e;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            gap: 12px;
+        }
+
+        .lb-rank {
+            font-size: 16px;
+            font-weight: 800;
+            width: 28px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .lb-rank.gold {
+            color: #f59e0b;
+        }
+
+        .lb-rank.silver {
+            color: #9ca3af;
+        }
+
+        .lb-rank.bronze {
+            color: #d97706;
+        }
+
+        .lb-rank.other {
+            color: #6b7280;
+        }
+
+        .lb-name {
+            flex: 1;
+            font-size: 14px;
+            font-weight: 600;
+            color: #e0e0ff;
+        }
+
+        .lb-score {
+            font-size: 14px;
+            font-weight: 800;
+            background: linear-gradient(90deg, #a78bfa, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .lb-empty {
+            text-align: center;
+            color: #6b7280;
+            font-size: 13px;
+            padding: 20px;
+        }
+
+        /* ── SUCCESS TOAST ── */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #059669;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            display: none;
+            z-index: 999;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        /* ── DIVIDER ── */
+        .divider {
+            height: 1px;
+            background: #2d2d4e;
+            margin: 14px 0;
+        }
+
+        /* ── ADVICE ── */
+        .advice-pill {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #1e1e38;
+            border: 1px solid #2d2d4e;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #a78bfa;
+            margin: 3px;
         }
     </style>
 </head>
-
 <body>
-<div class="box">
 
-    <h2>🔥 AI Analyzer Dashboard</h2>
-
-    <!-- shown while server is waking up on first load -->
-    <div id="wake-banner">⏳ Server waking up, please wait a moment...</div>
-
-    <input id="screen" type="number" min="0" max="24" placeholder="Screen Time (hrs)">
-    <input id="sleep" type="number" min="0" max="24" placeholder="Sleep (hrs)">
-    <input id="study" type="number" min="0" max="24" placeholder="Study (hrs)">
-    <input id="stress" type="number" min="1" max="10" placeholder="Stress (1-10)">
-    <textarea id="text" placeholder="Write something..."></textarea>
-
-    <div id="error-msg"></div>
-
-    <button id="analyzeBtn" onclick="analyze()">Analyze</button>
-
-    <h3 id="result"></h3>
-    <img id="graph" width="100%" style="display:none;">
-    <h3 id="trend" style="color:white; margin-top:10px;"></h3>
-    <p id="advice" style="color:white;"></p>
-    <p id="prediction"></p>
-
+<div class="header">
+    <h1>🔥 AI Analyzer</h1>
+    <p id="welcome-text">Welcome back!</p>
 </div>
 
+<!-- Wake Banner -->
+<div id="wake-banner">⏳ Server waking up, please wait...</div>
+
+<!-- TABS -->
+<div class="tabs">
+    <div class="tab active" onclick="switchTab('analyze')">📊 Analyze</div>
+    <div class="tab" onclick="switchTab('friends')">👥 Friends</div>
+    <div class="tab" onclick="switchTab('leaderboard')">🏆 Leaderboard</div>
+</div>
+
+<!-- ══════════ ANALYZE PANEL ══════════ -->
+<div id="panel-analyze" class="panel active">
+    <div class="card">
+        <div class="card-title">📝 Today's Input</div>
+        <div class="input-grid">
+            <div class="input-wrap">
+                <label>Screen Time (hrs)</label>
+                <input id="screen" type="number" min="0" max="24" placeholder="e.g. 3">
+            </div>
+            <div class="input-wrap">
+                <label>Sleep (hrs)</label>
+                <input id="sleep" type="number" min="0" max="24" placeholder="e.g. 7">
+            </div>
+            <div class="input-wrap">
+                <label>Study (hrs)</label>
+                <input id="study" type="number" min="0" max="24" placeholder="e.g. 5">
+            </div>
+            <div class="input-wrap">
+                <label>Stress (1-10)</label>
+                <input id="stress" type="number" min="1" max="10" placeholder="e.g. 4">
+            </div>
+        </div>
+        <div class="input-wrap">
+            <label>How are you feeling?</label>
+            <textarea id="text" placeholder="Write a sentence about yourself..."></textarea>
+        </div>
+        <div class="error-msg" id="error-msg"></div>
+        <button class="btn" id="analyzeBtn" onclick="analyze()">Analyze</button>
+    </div>
+
+    <!-- Result -->
+    <div class="result-card" id="result-card">
+        <div class="score-big" id="score-big">--</div>
+        <div class="score-sub">Wellness Score</div>
+        <div class="divider"></div>
+        <div class="result-row">
+            <span class="result-label">Personality</span>
+            <span class="badge badge-purple" id="res-personality">--</span>
+        </div>
+        <div class="result-row">
+            <span class="result-label">Confidence</span>
+            <span class="result-value" id="res-confidence">--</span>
+        </div>
+        <div class="result-row">
+            <span class="result-label">Progress</span>
+            <span class="result-value" id="res-progress">--</span>
+        </div>
+        <div class="result-row">
+            <span class="result-label">Trend</span>
+            <span class="result-value" id="res-trend">--</span>
+        </div>
+        <div class="result-row">
+            <span class="result-label">Tomorrow</span>
+            <span class="badge badge-blue" id="res-prediction">--</span>
+        </div>
+        <div class="divider"></div>
+        <div style="font-size:12px; color:#6b7280; margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:1px;">
+            Advice
+        </div>
+        <div id="res-advice"></div>
+        <div class="divider"></div>
+        <div style="font-size:12px; color:#6b7280; margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:1px;">
+            Suggestion
+        </div>
+        <div style="font-size:13px; color:#a78bfa;" id="res-suggestion"></div>
+        <img id="graph" width="100%">
+    </div>
+</div>
+
+<!-- ══════════ FRIENDS PANEL ══════════ -->
+<div id="panel-friends" class="panel">
+    <div class="card">
+        <div class="card-title">🔍 Add Friend</div>
+        <div class="search-row">
+            <input type="text" id="friend-search" placeholder="Enter username...">
+            <button class="btn btn-sm" onclick="addFriend()">Add</button>
+        </div>
+        <div class="error-msg" id="friend-error"></div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">👥 My Friends</div>
+        <div id="friends-list">
+            <div class="lb-empty">No friends yet. Search and add friends above!</div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════ LEADERBOARD PANEL ══════════ -->
+<div id="panel-leaderboard" class="panel">
+    <div class="card">
+        <div class="card-title">🏆 Friends Leaderboard</div>
+        <div id="leaderboard-list">
+            <div class="lb-empty">Add friends to see leaderboard!</div>
+        </div>
+        <button class="btn btn-outline" style="margin-top:12px;" onclick="loadLeaderboard()">🔄 Refresh</button>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
 <script>
-    /* ── Wake the server as soon as the page loads ── */
+    // ── INIT ──
+    const user_id = localStorage.getItem("user_id");
+    const username = localStorage.getItem("username") || "User";
+
+    if (!user_id) {
+        alert("Please log in again.");
+        window.location.href = "/";
+    }
+
+    document.getElementById("welcome-text").innerText = `Welcome, ${username}!`;
+
+    // Wake server
     window.addEventListener("load", () => {
         const banner = document.getElementById("wake-banner");
         banner.style.display = "block";
-        fetch("/")
-            .then(() => {
-                banner.style.display = "none";
-            })
-            .catch(() => {
-                banner.style.display = "none";
-            });
+        fetch("/").then(() => banner.style.display = "none")
+            .catch(() => banner.style.display = "none");
     });
 
+    // ── TABS ──
+    function switchTab(tab) {
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+        event.target.classList.add("active");
+        document.getElementById("panel-" + tab).classList.add("active");
+        if (tab === "friends") loadFriends();
+        if (tab === "leaderboard") loadLeaderboard();
+    }
+
+    // ── TOAST ──
+    function showToast(msg, color = "#059669") {
+        const t = document.getElementById("toast");
+        t.innerText = msg;
+        t.style.background = color;
+        t.style.display = "block";
+        setTimeout(() => t.style.display = "none", 2500);
+    }
+
+    // ── ANALYZE ──
     async function analyze() {
         const btn = document.getElementById("analyzeBtn");
         const errorEl = document.getElementById("error-msg");
-
-        /* clear old error */
         errorEl.innerText = "";
 
-        /* check login */
-        const user_id = localStorage.getItem("user_id");
-        if (!user_id) {
-            alert("Please log in again.");
-            window.location.href = "/";
-            return;
-        }
-
-        /* read values */
         const screen = document.getElementById("screen").value.trim();
         const sleep = document.getElementById("sleep").value.trim();
         const study = document.getElementById("study").value.trim();
         const stress = document.getElementById("stress").value.trim();
         const text = document.getElementById("text").value.trim();
 
-        /* client-side validation */
         if (!screen || !sleep || !study || !stress || !text) {
             errorEl.innerText = "⚠️ Please fill in all fields.";
             return;
         }
 
-        /* disable button so user can't double-click */
         btn.disabled = true;
         btn.innerText = "Analyzing...";
 
@@ -166,28 +649,57 @@
                 })
             });
 
-            /* handle non-200 HTTP errors */
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
-                errorEl.innerText = "❌ Error: " + (err.error || res.statusText);
+                errorEl.innerText = "❌ " + (err.error || res.statusText);
                 return;
             }
 
             const data = await res.json();
-
-            /* handle server-side validation errors */
             if (data.error) {
                 errorEl.innerText = "❌ " + data.error;
                 return;
             }
 
-            /* show results */
-            document.getElementById("result").innerHTML = `
-                Personality: ${data.personality} <br>
-                Score: ${data.score} <br>
-                ${data.suggestion}
-            `;
+            // Show result card
+            const card = document.getElementById("result-card");
+            card.style.display = "block";
 
+            document.getElementById("score-big").innerText = data.score;
+            document.getElementById("res-personality").innerText = data.personality;
+            document.getElementById("res-confidence").innerText = data.confidence + "%";
+
+            // Progress badge
+            const prog = data.progress;
+            const progEl = document.getElementById("res-progress");
+            if (prog > 0) {
+                progEl.innerText = "+" + prog.toFixed(1);
+                progEl.style.color = "#34d399";
+            } else if (prog < 0) {
+                progEl.innerText = prog.toFixed(1);
+                progEl.style.color = "#f87171";
+            } else {
+                progEl.innerText = "Stable";
+                progEl.style.color = "#9ca3af";
+            }
+
+            document.getElementById("res-trend").innerText = data.trend || "--";
+            document.getElementById("res-prediction").innerText = data.prediction != null ? "~" + data.prediction : "--";
+            document.getElementById("res-suggestion").innerText = data.suggestion || "";
+
+            // Advice pills
+            const adviceEl = document.getElementById("res-advice");
+            adviceEl.innerHTML = "";
+            if (data.advice) {
+                data.advice.split("|").forEach(a => {
+                    const pill = document.createElement("span");
+                    pill.className = "advice-pill";
+                    pill.innerText = a.trim();
+                    adviceEl.appendChild(pill);
+                });
+            }
+
+            // Graph
             const graphEl = document.getElementById("graph");
             if (data.graph) {
                 graphEl.src = data.graph;
@@ -196,21 +708,150 @@
                 graphEl.style.display = "none";
             }
 
-            document.getElementById("trend").innerText = data.trend || "";
-            document.getElementById("advice").innerText = data.advice || "";
-            document.getElementById("prediction").innerText =
-                data.prediction != null
-                    ? "Tomorrow Score ≈ " + data.prediction
-                    : "";
+            showToast("✅ Analysis complete!");
+            card.scrollIntoView({behavior: "smooth", block: "start"});
 
         } catch (err) {
-            /* network / fetch failure */
             errorEl.innerText = "❌ Could not reach server. Please try again.";
             console.error(err);
         } finally {
-            /* ALWAYS re-enable the button */
             btn.disabled = false;
             btn.innerText = "Analyze";
+        }
+    }
+
+    // ── ADD FRIEND ──
+    async function addFriend() {
+        const input = document.getElementById("friend-search");
+        const errorEl = document.getElementById("friend-error");
+        const friendUsername = input.value.trim().toLowerCase();
+        errorEl.innerText = "";
+
+        if (!friendUsername) {
+            errorEl.innerText = "⚠️ Enter a username.";
+            return;
+        }
+        if (friendUsername === username.toLowerCase()) {
+            errorEl.innerText = "⚠️ You cannot add yourself!";
+            return;
+        }
+
+        try {
+            const res = await fetch("/add_friend", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({user_id: parseInt(user_id), friend_username: friendUsername})
+            });
+            const data = await res.json();
+
+            if (data.error) {
+                errorEl.innerText = "❌ " + data.error;
+                return;
+            }
+            if (data.message === "User not found") {
+                errorEl.innerText = "❌ User not found.";
+                return;
+            }
+
+            input.value = "";
+            showToast("✅ Friend added!");
+            loadFriends();
+
+        } catch (err) {
+            errorEl.innerText = "❌ Could not reach server.";
+        }
+    }
+
+    // ── LOAD FRIENDS ──
+    async function loadFriends() {
+        const list = document.getElementById("friends-list");
+        list.innerHTML = '<div class="lb-empty">Loading...</div>';
+
+        try {
+            const res = await fetch("/get_friends", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({user_id: parseInt(user_id)})
+            });
+            const data = await res.json();
+
+            if (!data.friends || data.friends.length === 0) {
+                list.innerHTML = '<div class="lb-empty">No friends yet. Add someone above!</div>';
+                return;
+            }
+
+            list.innerHTML = "";
+            data.friends.forEach(f => {
+                const div = document.createElement("div");
+                div.className = "friend-item";
+                div.innerHTML = `
+                <div class="friend-avatar">${f.username[0].toUpperCase()}</div>
+                <div class="friend-info">
+                    <div class="friend-name">${f.username}</div>
+                    <div class="friend-sub">Best score: ${f.best_score ?? "--"}</div>
+                </div>
+                <button class="btn btn-sm btn-outline" onclick="removeFriend(${f.friend_id}, this)">Remove</button>
+            `;
+                list.appendChild(div);
+            });
+        } catch (err) {
+            list.innerHTML = '<div class="lb-empty">❌ Could not load friends.</div>';
+        }
+    }
+
+    // ── REMOVE FRIEND ──
+    async function removeFriend(friend_id, btn) {
+        btn.disabled = true;
+        btn.innerText = "...";
+        try {
+            const res = await fetch("/remove_friend", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({user_id: parseInt(user_id), friend_id})
+            });
+            const data = await res.json();
+            showToast("✅ Friend removed!");
+            loadFriends();
+        } catch {
+            btn.disabled = false;
+            btn.innerText = "Remove";
+        }
+    }
+
+    // ── LEADERBOARD ──
+    async function loadLeaderboard() {
+        const list = document.getElementById("leaderboard-list");
+        list.innerHTML = '<div class="lb-empty">Loading...</div>';
+
+        try {
+            const res = await fetch("/leaderboard", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({user_id: parseInt(user_id)})
+            });
+            const data = await res.json();
+
+            if (!Array.isArray(data) || data.length === 0) {
+                list.innerHTML = '<div class="lb-empty">Add friends to see leaderboard!</div>';
+                return;
+            }
+
+            const medals = ["gold", "silver", "bronze"];
+            list.innerHTML = "";
+            data.forEach((row, i) => {
+                const rankClass = medals[i] || "other";
+                const rankIcon = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`;
+                const div = document.createElement("div");
+                div.className = "lb-row";
+                div.innerHTML = `
+                <div class="lb-rank ${rankClass}">${rankIcon}</div>
+                <div class="lb-name">${row.username}</div>
+                <div class="lb-score">${row.score?.toFixed(1) ?? "--"}</div>
+            `;
+                list.appendChild(div);
+            });
+        } catch (err) {
+            list.innerHTML = '<div class="lb-empty">❌ Could not load leaderboard.</div>';
         }
     }
 </script>

@@ -415,13 +415,86 @@ def reset_db():
 @app.route("/add_friend", methods=["POST"])
 def add_friend():
     data = request.get_json(force=True)
+    user_id = data.get("user_id")
+    friend_username = data.get("friend_username", "").lower().strip()
+
+    if not friend_username:
+        return jsonify({"error": "Username required"}), 400
+
     DATABASE_URL = os.environ.get("DATABASE_URL")
     conn = psycopg2.connect(DATABASE_URL)
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO friends VALUES (?, ?)", (data["user_id"], data["friend_id"]))
+
+    # Find friend by username
+    cursor.execute("SELECT id FROM users WHERE username=%s", (friend_username,))
+    friend = cursor.fetchone()
+
+    if not friend:
+        conn.close()
+        return jsonify({"message": "User not found"})
+
+    friend_id = friend[0]
+
+    if friend_id == user_id:
+        conn.close()
+        return jsonify({"error": "Cannot add yourself"})
+
+    # Check if already friends
+    cursor.execute(
+        "SELECT 1 FROM friends WHERE user_id=%s AND friend_id=%s",
+        (user_id, friend_id)
+    )
+    if cursor.fetchone():
+        conn.close()
+        return jsonify({"error": "Already friends"})
+
+    cursor.execute(
+        "INSERT INTO friends (user_id, friend_id) VALUES (%s, %s)",
+        (user_id, friend_id)
+    )
     conn.commit()
     conn.close()
     return jsonify({"message": "Friend added"})
+
+
+@app.route("/get_friends", methods=["POST"])
+def get_friends():
+    user_id = request.get_json(force=True)["user_id"]
+    DATABASE_URL = os.environ.get("DATABASE_URL")
+    conn = psycopg2.connect(DATABASE_URL)
+
+    df = pd.read_sql_query("""
+                           SELECT u.id         as friend_id,
+                                  u.username,
+                                  MAX(a.score) as best_score
+                           FROM friends f
+                                    JOIN users u ON u.id = f.friend_id
+                                    LEFT JOIN activity a ON a.user_id = f.friend_id
+                           WHERE f.user_id = %s
+                           GROUP BY u.id, u.username
+                           ORDER BY u.username
+                           """, conn, params=(user_id,))
+    conn.close()
+
+    return jsonify({"friends": df.to_dict(orient="records")})
+
+
+@app.route("/remove_friend", methods=["POST"])
+def remove_friend():
+    data = request.get_json(force=True)
+    user_id = data.get("user_id")
+    friend_id = data.get("friend_id")
+
+    DATABASE_URL = os.environ.get("DATABASE_URL")
+    conn = psycopg2.connect(DATABASE_URL)
+    cursor = conn.cursor()
+    cursor.execute(
+        "DELETE FROM friends WHERE user_id=%s AND friend_id=%s",
+        (user_id, friend_id)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({"message": "Friend removed"})
 
 
 # -------------------- LEADERBOARD --------------------
