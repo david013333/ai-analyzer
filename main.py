@@ -9,6 +9,7 @@ import os
 import psycopg2
 from flask import session
 
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.preprocessing import MinMaxScaler
@@ -74,115 +75,45 @@ def init_db():
 init_db()
 
 # -------------------- PERSONALITY MODEL --------------------
-"""
-HOW IT WORKS:
-─────────────────────────────────────────────────────
-SentenceTransformer (all-MiniLM-L6-v2)
-  - Trained on billions of internet sentences
-  - Understands MEANING of sentences
-  - "never feel confident" ≠ "always feel confident" ✅
-  - "homebody" = "likes staying home" ✅
-  - Handles negations, synonyms, new words ✅
+# Using TF-IDF + Logistic Regression
+# Lightweight — uses only ~5MB RAM on Render (safe for free tier)
+# Dataset has 653 rows with negation sentences for better accuracy
 
-WHY PKL FILES:
-  - Render free tier = 512MB RAM
-  - Downloading ST model at runtime = ~400MB RAM → CRASH ❌
-  - Pre-trained pkl file = loads directly = ~90MB RAM ✅
-
-HOW TO GENERATE PKL FILES (do this ONCE on your PC):
-  python generate_pkl.py
-  git add st_model.pkl personality_model.pkl
-  git commit -m "Added pretrained pkl files"
-  git push
-─────────────────────────────────────────────────────
-"""
-
-sentence_model = None
+vectorizer = None
 model_personality = None
-
-ST_MODEL_PATH = os.path.join(BASE_DIR, "st_model.pkl")
-PERSONALITY_MODEL_PATH = os.path.join(BASE_DIR, "personality_model.pkl")
 
 
 def load_model():
-    global sentence_model, model_personality
+    global vectorizer, model_personality
 
     if model_personality is not None:
         return
 
-    # ── Option 1: Load from pre-trained pkl files (PREFERRED) ──
-    if os.path.exists(ST_MODEL_PATH) and os.path.exists(PERSONALITY_MODEL_PATH):
-        print("✅ Loading personality model from pkl files...")
-        sentence_model = joblib.load(ST_MODEL_PATH)
-        model_personality = joblib.load(PERSONALITY_MODEL_PATH)
-        print("✅ Personality model loaded from pkl!")
-        return
+    path = os.path.join(BASE_DIR, "dataset.csv")
+    df_data = pd.read_csv(path)
+    texts = df_data["text"].tolist()
+    labels = df_data["label"].tolist()
 
-    # ── Option 2: Download ST at runtime (only if pkl missing) ──
-    # Warning: May cause memory issues on Render free tier
-    print("⚠️  pkl files not found — downloading ST model (may be slow)...")
-    try:
-        from sentence_transformers import SentenceTransformer
+    vectorizer = TfidfVectorizer(
+        ngram_range=(1, 2),  # single words + word pairs
+        sublinear_tf=True,  # log scaling
+        min_df=1
+    )
+    X = vectorizer.fit_transform(texts)
 
-        df_data = pd.read_csv(os.path.join(BASE_DIR, "dataset.csv"))
-        texts = df_data["text"].tolist()
-        labels = df_data["label"].tolist()
-
-        sentence_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-        X = sentence_model.encode(texts, show_progress_bar=False)
-
-        model_personality = LogisticRegression(
-            max_iter=1000, C=5.0,
-            class_weight="balanced", solver="lbfgs"
-        )
-        model_personality.fit(X, labels)
-
-        # Save for next time so we don't download again
-        joblib.dump(sentence_model, ST_MODEL_PATH)
-        joblib.dump(model_personality, PERSONALITY_MODEL_PATH)
-        print("✅ ST model downloaded and saved to pkl!")
-
-    except Exception as e:
-        # ── Option 3: Fall back to improved TF-IDF ──
-        print(f"⚠️  ST failed ({e}) — falling back to TF-IDF...")
-        from sklearn.feature_extraction.text import TfidfVectorizer
-
-        df_data = pd.read_csv(os.path.join(BASE_DIR, "dataset.csv"))
-        texts = df_data["text"].tolist()
-        labels = df_data["label"].tolist()
-
-        tfidf = TfidfVectorizer(ngram_range=(1, 2), sublinear_tf=True, min_df=1)
-        X = tfidf.fit_transform(texts)
-
-        model_personality = LogisticRegression(
-            max_iter=1000, C=5.0,
-            class_weight="balanced", solver="lbfgs"
-        )
-        model_personality.fit(X, labels)
-
-        # Store tfidf as sentence_model so /analyze route works uniformly
-        sentence_model = tfidf
-        print("⚠️  Using TF-IDF fallback (pkl files missing)")
+    model_personality = LogisticRegression(
+        max_iter=1000,
+        C=5.0,
+        class_weight='balanced',
+        solver='lbfgs'
+    )
+    model_personality.fit(X, labels)
 
 
 def get_personality_prediction(text: str):
-    """
-    Works with BOTH SentenceTransformer and TF-IDF fallback.
-    Returns (label, probability).
-    """
-    from sklearn.feature_extraction.text import TfidfVectorizer
-
-    if isinstance(sentence_model, TfidfVectorizer):
-        # TF-IDF fallback
-        vec = sentence_model.transform([text])
-        pred = model_personality.predict(vec)[0]
-        prob = model_personality.predict_proba(vec).max()
-    else:
-        # SentenceTransformer
-        embedding = sentence_model.encode([text], show_progress_bar=False)
-        pred = model_personality.predict(embedding)[0]
-        prob = model_personality.predict_proba(embedding).max()
-
+    vec = vectorizer.transform([text])
+    pred = model_personality.predict(vec)[0]
+    prob = model_personality.predict_proba(vec).max()
     return pred, prob
 
 
