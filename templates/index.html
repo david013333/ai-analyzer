@@ -18,7 +18,7 @@
             padding: 25px;
             border-radius: 15px;
             width: 350px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
         }
 
         input {
@@ -27,6 +27,7 @@
             margin: 6px 0;
             border-radius: 8px;
             border: 1px solid #ccc;
+            box-sizing: border-box;
         }
 
         button {
@@ -58,57 +59,51 @@
 
 <script>
 
-// ---------------- LOGIN ----------------
-async function login() {
-    let username = document.getElementById("username").value;
-    let password = document.getElementById("password").value;
+    // ---------------- LOGIN ----------------
+    async function login() {
+        let username = document.getElementById("username").value;
+        let password = document.getElementById("password").value;
 
-    const res = await fetch("/login", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({username, password})
-    });
+        const res = await fetch("/login", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({username, password})
+        });
 
-    const data = await res.json();
+        const data = await res.json();
 
-    if (data.message === "Login success") {
-        // 🔥 IMPORTANT
-        localStorage.setItem("user_id", data.user_id);
-
-        // 🔥 redirect
-        window.location.href = "/dashboard";
-    } else {
-        alert("Login failed");
+        if (data.message === "Login success") {
+            localStorage.setItem("user_id", data.user_id);
+            localStorage.setItem("username", data.username); // ← ADDED
+            window.location.href = "/dashboard";
+        } else {
+            alert("Login failed");
+        }
     }
-}
 
-// ---------------- SIGNUP ----------------
-async function signup() {
-    const res = await fetch("/signup", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            username: document.getElementById("username").value,
-            password: document.getElementById("password").value
-        })
-    });
+    // ---------------- SIGNUP ----------------
+    async function signup() {
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
 
-    const data = await res.json();
-    console.log("SIGNUP:", data);
+        const res = await fetch("/signup", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({username, password})
+        });
 
-    if (data.message === "Signup success") {
-    alert("Signup success");
+        const data = await res.json();
+        console.log("SIGNUP:", data);
 
-    // 🔥 IMPORTANT FIX
-    localStorage.setItem("user_id", data.user_id);
-
-    window.location.href = "/dashboard";
-    } else {
-        alert(data.message);
+        if (data.message === "Signup success") {
+            alert("Signup success");
+            localStorage.setItem("user_id", data.user_id);
+            localStorage.setItem("username", username); // ← ADDED
+            window.location.href = "/dashboard";
+        } else {
+            alert(data.message);
+        }
     }
-}
 
 </script>
 
