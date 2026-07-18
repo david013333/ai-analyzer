@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import os
 import psycopg2
 from flask import session
+import threading
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression, LinearRegression
@@ -68,6 +69,25 @@ def init_db():
                        friend_id
                        INTEGER
                    )""")
+    cursor.execute("""
+                   CREATE TABLE IF NOT EXISTS streak
+                   (
+                       user_id
+                       INTEGER
+                       UNIQUE,
+                       target
+                       REAL,
+                       current_streak
+                       INTEGER
+                       DEFAULT
+                       0,
+                       longest_streak
+                       INTEGER
+                       DEFAULT
+                       0,
+                       last_date
+                       TEXT
+                   )""")
     conn.commit()
     conn.close()
 
@@ -75,38 +95,21 @@ def init_db():
 init_db()
 
 # -------------------- PERSONALITY MODEL --------------------
-# Using TF-IDF + Logistic Regression
-# Lightweight — uses only ~5MB RAM on Render (safe for free tier)
-# Dataset has 653 rows with negation sentences for better accuracy
-
 vectorizer = None
 model_personality = None
 
 
 def load_model():
     global vectorizer, model_personality
-
     if model_personality is not None:
         return
-
     path = os.path.join(BASE_DIR, "dataset.csv")
     df_data = pd.read_csv(path)
     texts = df_data["text"].tolist()
     labels = df_data["label"].tolist()
-
-    vectorizer = TfidfVectorizer(
-        ngram_range=(1, 2),  # single words + word pairs
-        sublinear_tf=True,  # log scaling
-        min_df=1
-    )
+    vectorizer = TfidfVectorizer(ngram_range=(1, 2), sublinear_tf=True, min_df=1)
     X = vectorizer.fit_transform(texts)
-
-    model_personality = LogisticRegression(
-        max_iter=1000,
-        C=5.0,
-        class_weight='balanced',
-        solver='lbfgs'
-    )
+    model_personality = LogisticRegression(max_iter=1000, C=5.0, class_weight='balanced', solver='lbfgs')
     model_personality.fit(X, labels)
 
 
@@ -117,12 +120,12 @@ def get_personality_prediction(text: str):
     return pred, prob
 
 
-# -------------------- REAL DATASET LOADER --------------------
+# -------------------- REAL DATASET --------------------
 DATASET_PATH = os.path.join(BASE_DIR, "student_lifestyle_dataset.csv")
 STRESS_MAP = {"Low": 2, "Moderate": 5, "High": 9}
 
 
-def load_real_dataset() -> pd.DataFrame:
+def load_real_dataset():
     df = pd.read_csv(DATASET_PATH)
     result = pd.DataFrame()
     result["study"] = df["Study_Hours_Per_Day"]
@@ -134,7 +137,7 @@ def load_real_dataset() -> pd.DataFrame:
     return result.dropna()
 
 
-# -------------------- RANDOM FOREST SCORE MODEL --------------------
+# -------------------- RANDOM FOREST --------------------
 rf_score_model = None
 rf_scaler = None
 RF_MODEL_PATH = os.path.join(BASE_DIR, "rf_score_model.pkl")
@@ -152,25 +155,18 @@ def generate_synthetic_training_data(n=2000):
     sleep = np.random.uniform(3, 10, n)
     study = np.random.uniform(0, 10, n)
     stress = np.random.uniform(1, 10, n)
-    scores = [rule_based_score(sc, sl, st, sr)
-              for sc, sl, st, sr in zip(screen, sleep, study, stress)]
-    return pd.DataFrame({
-        "screen_time": screen, "sleep": sleep,
-        "study": study, "stress": stress, "score": scores
-    })
+    scores = [rule_based_score(sc, sl, st, sr) for sc, sl, st, sr in zip(screen, sleep, study, stress)]
+    return pd.DataFrame({"screen_time": screen, "sleep": sleep, "study": study, "stress": stress, "score": scores})
 
 
-def train_rf_model(df: pd.DataFrame):
+def train_rf_model(df):
     global rf_score_model, rf_scaler
     features = ["screen_time", "sleep", "study", "stress"]
     X = df[features].values
     y = df["score"].values
     scaler = MinMaxScaler()
     X_scaled = scaler.fit_transform(X)
-    rf = RandomForestRegressor(
-        n_estimators=200, max_depth=10,
-        min_samples_split=5, random_state=42, n_jobs=-1
-    )
+    rf = RandomForestRegressor(n_estimators=200, max_depth=10, min_samples_split=5, random_state=42, n_jobs=-1)
     rf.fit(X_scaled, y)
     rf_score_model = rf
     rf_scaler = scaler
@@ -192,8 +188,7 @@ def load_rf_model():
         if DATABASE_URL:
             conn = psycopg2.connect(DATABASE_URL)
             df_db = pd.read_sql_query(
-                "SELECT screen_time, sleep, study, stress, score FROM activity WHERE score IS NOT NULL", conn
-            )
+                "SELECT screen_time, sleep, study, stress, score FROM activity WHERE score IS NOT NULL", conn)
             conn.close()
             if not df_db.empty:
                 df_train = pd.concat([df_train, df_db], ignore_index=True)
@@ -207,8 +202,7 @@ def retrain_rf_with_db():
         DATABASE_URL = os.environ.get("DATABASE_URL")
         conn = psycopg2.connect(DATABASE_URL)
         df_db = pd.read_sql_query(
-            "SELECT screen_time, sleep, study, stress, score FROM activity WHERE score IS NOT NULL", conn
-        )
+            "SELECT screen_time, sleep, study, stress, score FROM activity WHERE score IS NOT NULL", conn)
         conn.close()
         if len(df_db) < 10:
             return
@@ -231,34 +225,27 @@ def calculate_score(screen, sleep, study, stress):
         return round(max(0.0, min(float(score), 100.0)), 2)
 
 
-# -------------------- INPUT VALIDATION --------------------
+# -------------------- VALIDATION --------------------
 def validate_inputs(screen, sleep, study, stress):
     errors = []
-    if screen < 0: errors.append("Screen time cannot be negative.")
-    if sleep < 0: errors.append("Sleep hours cannot be negative.")
-    if study < 0: errors.append("Study hours cannot be negative.")
-    if stress < 0: errors.append("Stress cannot be negative.")
+    if screen < 0:  errors.append("Screen time cannot be negative.")
+    if sleep < 0:  errors.append("Sleep hours cannot be negative.")
+    if study < 0:  errors.append("Study hours cannot be negative.")
+    if stress < 0:  errors.append("Stress cannot be negative.")
     if screen > 24: errors.append("Screen time cannot exceed 24 hours.")
     if sleep > 24: errors.append("Sleep cannot exceed 24 hours.")
     if study > 24: errors.append("Study cannot exceed 24 hours.")
-    if stress < 1 or stress > 10:
-        errors.append("Stress must be between 1 and 10.")
+    if stress < 1 or stress > 10: errors.append("Stress must be between 1 and 10.")
     total = screen + sleep + study
     if total > 24:
-        errors.append(
-            f"Total hours (screen {screen}h + sleep {sleep}h + study {study}h = {total}h) "
-            f"cannot exceed 24 hours in a day."
-        )
+        errors.append(f"Total hours ({screen}h+{sleep}h+{study}h={total}h) cannot exceed 24.")
     if sleep + study > 24:
-        errors.append(
-            f"Sleep ({sleep}h) + Study ({study}h) = {sleep + study}h — "
-            f"cannot overlap beyond 24 hours."
-        )
+        errors.append(f"Sleep ({sleep}h) + Study ({study}h) cannot overlap beyond 24 hours.")
     return (False, " | ".join(errors)) if errors else (True, None)
 
 
-# -------------------- NEXT DAY PREDICTION --------------------
-def build_prediction_features(df: pd.DataFrame) -> pd.DataFrame:
+# -------------------- PREDICTION --------------------
+def build_prediction_features(df):
     df = df.copy().sort_values("date").reset_index(drop=True)
     df["score_lag1"] = df["score"].shift(1)
     df["score_lag2"] = df["score"].shift(2)
@@ -267,7 +254,7 @@ def build_prediction_features(df: pd.DataFrame) -> pd.DataFrame:
     return df.dropna()
 
 
-def predict_score(df: pd.DataFrame):
+def predict_score(df):
     if len(df) < 2:
         return None
     df_feat = build_prediction_features(df)
@@ -277,8 +264,7 @@ def predict_score(df: pd.DataFrame):
     X = df_feat[feature_cols].values
     y = df_feat["score"].values
     model = LinearRegression() if len(df_feat) < 5 else GradientBoostingRegressor(
-        n_estimators=100, max_depth=3, learning_rate=0.1, random_state=42
-    )
+        n_estimators=100, max_depth=3, learning_rate=0.1, random_state=42)
     model.fit(X, y)
     last_score = df["score"].iloc[-1]
     prev_score = df["score"].iloc[-2] if len(df) >= 2 else last_score
@@ -286,6 +272,70 @@ def predict_score(df: pd.DataFrame):
     trend = last_score - prev_score
     predicted = model.predict(np.array([[last_score, prev_score, rolling3, trend]]))[0]
     return round(max(0.0, min(float(predicted), 100.0)), 2)
+
+
+# -------------------- STREAK SYSTEM --------------------
+def get_user_average(user_id, days=7):
+    try:
+        DATABASE_URL = os.environ.get("DATABASE_URL")
+        conn = psycopg2.connect(DATABASE_URL)
+        df = pd.read_sql_query(
+            "SELECT score FROM activity WHERE user_id=%s ORDER BY date DESC LIMIT %s",
+            conn, params=(user_id, days))
+        conn.close()
+        if df.empty:
+            return None
+        return round(float(df["score"].mean()), 2)
+    except Exception:
+        return None
+
+
+def update_streak(user_id, today_score, target, today_date):
+    try:
+        DATABASE_URL = os.environ.get("DATABASE_URL")
+        conn = psycopg2.connect(DATABASE_URL)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT current_streak, longest_streak, last_date, target FROM streak WHERE user_id=%s",
+            (user_id,))
+        row = cursor.fetchone()
+
+        if row is None:
+            hit = 1 if today_score >= target else 0
+            longest = hit
+            cursor.execute(
+                "INSERT INTO streak (user_id, target, current_streak, longest_streak, last_date) VALUES (%s,%s,%s,%s,%s)",
+                (user_id, target, hit, longest, today_date))
+            conn.commit()
+            conn.close()
+            return {"current_streak": hit, "longest_streak": longest,
+                    "target": target, "hit": bool(hit), "already_done_today": False}
+
+        current, longest, last_date, saved_target = row
+        use_target = target if target else saved_target
+
+        if last_date == today_date:
+            conn.close()
+            return {"current_streak": current, "longest_streak": longest,
+                    "target": use_target, "hit": today_score >= use_target, "already_done_today": True}
+
+        if today_score >= use_target:
+            current += 1
+            hit = True
+        else:
+            current = 0
+            hit = False
+
+        longest = max(longest, current)
+        cursor.execute(
+            "UPDATE streak SET current_streak=%s, longest_streak=%s, last_date=%s, target=%s WHERE user_id=%s",
+            (current, longest, today_date, use_target, user_id))
+        conn.commit()
+        conn.close()
+        return {"current_streak": current, "longest_streak": longest,
+                "target": use_target, "hit": hit, "already_done_today": False}
+    except Exception as e:
+        return {"current_streak": 0, "longest_streak": 0, "target": target, "hit": False, "error": str(e)}
 
 
 # -------------------- HELPERS --------------------
@@ -312,16 +362,14 @@ def generate_plot(user_id):
     conn = psycopg2.connect(DATABASE_URL)
     df = pd.read_sql_query(
         "SELECT date, score, screen_time, sleep, study, stress FROM activity WHERE user_id=%s",
-        conn, params=(user_id,)
-    )
+        conn, params=(user_id,))
     conn.close()
+    if df.empty:
+        return None
     if len(df) >= 2:
-        if df.iloc[-1]["score"] > df.iloc[-2]["score"]:
-            trend = "Improving 📈"
-        elif df.iloc[-1]["score"] < df.iloc[-2]["score"]:
-            trend = "Declining 📉"
-        else:
-            trend = "Same 😐"
+        trend = ("Improving 📈" if df.iloc[-1]["score"] > df.iloc[-2]["score"]
+                 else "Declining 📉" if df.iloc[-1]["score"] < df.iloc[-2]["score"]
+        else "Same 😐")
     else:
         trend = "Not enough data"
     latest = df.iloc[-1]
@@ -330,12 +378,10 @@ def generate_plot(user_id):
     if latest["sleep"] < 6: advice.append("Improve sleep 😴")
     if latest["study"] < 2: advice.append("Study more 📚")
     if latest["stress"] > 7: advice.append("Try to relax 🧘")
-    if not advice:                 advice.append("Good job! Keep it up 👍")
+    if not advice:                advice.append("Good job! Keep it up 👍")
     advice_text = " | ".join(advice)
-    if df.empty:
-        return None
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
-    df = df.dropna()
+    df = df.dropna(subset=["date"])
     df = df.groupby(df["date"].dt.date)["score"].mean().reset_index()
     df["date"] = df["date"].astype(str)
     plt.figure(figsize=(6, 4))
@@ -361,10 +407,8 @@ def signup():
         DATABASE_URL = os.environ.get("DATABASE_URL")
         conn = psycopg2.connect(DATABASE_URL)
         cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO users (username, password) VALUES (%s, %s) RETURNING id",
-            (username.lower(), password)
-        )
+        cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s) RETURNING id",
+                       (username.lower(), password))
         new_user_id = cursor.fetchone()[0]
         conn.commit()
         conn.close()
@@ -388,7 +432,7 @@ def login():
     conn.close()
     if user:
         session["user_id"] = user[0]
-        return jsonify({"message": "Login success", "user_id": user[0]})
+        return jsonify({"message": "Login success", "user_id": user[0], "username": username})
     return jsonify({"message": "Login failed"})
 
 
@@ -405,53 +449,89 @@ def reset_db():
     cursor.execute("DROP TABLE IF EXISTS users")
     cursor.execute("DROP TABLE IF EXISTS activity")
     cursor.execute("DROP TABLE IF EXISTS friends")
+    cursor.execute("DROP TABLE IF EXISTS streak")
     conn.commit()
     conn.close()
     init_db()
     return "DB Reset Done"
 
 
-# -------------------- FRIEND --------------------
+# -------------------- STREAK ROUTES --------------------
+@app.route("/get_streak", methods=["POST"])
+def get_streak():
+    user_id = request.get_json(force=True).get("user_id")
+    try:
+        DATABASE_URL = os.environ.get("DATABASE_URL")
+        conn = psycopg2.connect(DATABASE_URL)
+        cursor = conn.cursor()
+        cursor.execute("SELECT current_streak, longest_streak, target FROM streak WHERE user_id=%s", (user_id,))
+        row = cursor.fetchone()
+        conn.close()
+        avg = get_user_average(user_id, days=7)
+        if row is None:
+            return jsonify({"current_streak": 0, "longest_streak": 0, "target": None, "avg": avg})
+        return jsonify({"current_streak": row[0], "longest_streak": row[1], "target": row[2], "avg": avg})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/set_target", methods=["POST"])
+def set_target():
+    data = request.get_json(force=True)
+    user_id = data.get("user_id")
+    target = float(data.get("target", 0))
+    avg = get_user_average(user_id, days=7)
+    if avg is not None and target <= avg:
+        return jsonify(
+            {"error": f"Target must be greater than your 7-day average ({avg}). Try {round(avg + 1, 1)}+"}), 400
+    if target < 0 or target > 100:
+        return jsonify({"error": "Target must be between 0 and 100"}), 400
+    try:
+        DATABASE_URL = os.environ.get("DATABASE_URL")
+        conn = psycopg2.connect(DATABASE_URL)
+        cursor = conn.cursor()
+        cursor.execute("SELECT user_id FROM streak WHERE user_id=%s", (user_id,))
+        exists = cursor.fetchone()
+        if exists:
+            cursor.execute(
+                "UPDATE streak SET target=%s, current_streak=0, last_date=NULL WHERE user_id=%s",
+                (target, user_id))
+        else:
+            cursor.execute(
+                "INSERT INTO streak (user_id, target, current_streak, longest_streak, last_date) VALUES (%s,%s,0,0,NULL)",
+                (user_id, target))
+        conn.commit()
+        conn.close()
+        return jsonify({"message": "Target set!", "target": target, "avg": avg})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# -------------------- FRIENDS --------------------
 @app.route("/add_friend", methods=["POST"])
 def add_friend():
     data = request.get_json(force=True)
     user_id = data.get("user_id")
     friend_username = data.get("friend_username", "").lower().strip()
-
     if not friend_username:
         return jsonify({"error": "Username required"}), 400
-
     DATABASE_URL = os.environ.get("DATABASE_URL")
     conn = psycopg2.connect(DATABASE_URL)
     cursor = conn.cursor()
-
-    # Find friend by username
     cursor.execute("SELECT id FROM users WHERE username=%s", (friend_username,))
     friend = cursor.fetchone()
-
     if not friend:
         conn.close()
         return jsonify({"message": "User not found"})
-
     friend_id = friend[0]
-
     if friend_id == user_id:
         conn.close()
         return jsonify({"error": "Cannot add yourself"})
-
-    # Check if already friends
-    cursor.execute(
-        "SELECT 1 FROM friends WHERE user_id=%s AND friend_id=%s",
-        (user_id, friend_id)
-    )
+    cursor.execute("SELECT 1 FROM friends WHERE user_id=%s AND friend_id=%s", (user_id, friend_id))
     if cursor.fetchone():
         conn.close()
         return jsonify({"error": "Already friends"})
-
-    cursor.execute(
-        "INSERT INTO friends (user_id, friend_id) VALUES (%s, %s)",
-        (user_id, friend_id)
-    )
+    cursor.execute("INSERT INTO friends (user_id, friend_id) VALUES (%s, %s)", (user_id, friend_id))
     conn.commit()
     conn.close()
     return jsonify({"message": "Friend added"})
@@ -462,20 +542,16 @@ def get_friends():
     user_id = request.get_json(force=True)["user_id"]
     DATABASE_URL = os.environ.get("DATABASE_URL")
     conn = psycopg2.connect(DATABASE_URL)
-
     df = pd.read_sql_query("""
-                           SELECT u.id         as friend_id,
-                                  u.username,
-                                  MAX(a.score) as best_score
+                           SELECT u.id AS friend_id, u.username, MAX(a.score) AS best_score
                            FROM friends f
                                     JOIN users u ON u.id = f.friend_id
                                     LEFT JOIN activity a ON a.user_id = f.friend_id
                            WHERE f.user_id = %s
                            GROUP BY u.id, u.username
                            ORDER BY u.username
-                           """, conn, params=(user_id,))
+                             """, conn, params=(user_id,))
     conn.close()
-
     return jsonify({"friends": df.to_dict(orient="records")})
 
 
@@ -484,14 +560,10 @@ def remove_friend():
     data = request.get_json(force=True)
     user_id = data.get("user_id")
     friend_id = data.get("friend_id")
-
     DATABASE_URL = os.environ.get("DATABASE_URL")
     conn = psycopg2.connect(DATABASE_URL)
     cursor = conn.cursor()
-    cursor.execute(
-        "DELETE FROM friends WHERE user_id=%s AND friend_id=%s",
-        (user_id, friend_id)
-    )
+    cursor.execute("DELETE FROM friends WHERE user_id=%s AND friend_id=%s", (user_id, friend_id))
     conn.commit()
     conn.close()
     return jsonify({"message": "Friend removed"})
@@ -503,15 +575,34 @@ def leaderboard():
     user_id = request.get_json(force=True)["user_id"]
     DATABASE_URL = os.environ.get("DATABASE_URL")
     conn = psycopg2.connect(DATABASE_URL)
-    query = f"""
-    SELECT users.username, MAX(activity.score) as score
-    FROM activity JOIN users ON users.id = activity.user_id
-    WHERE activity.user_id IN (SELECT friend_id FROM friends WHERE user_id = {user_id})
-    GROUP BY users.username ORDER BY score DESC
-    """
-    df = pd.read_sql_query(query, conn)
+    # Friends + self combined
+    df_friends = pd.read_sql_query("""
+                                   SELECT u.username, MAX(a.score) AS score
+                                   FROM activity a
+                                            JOIN users u ON u.id = a.user_id
+                                   WHERE a.user_id IN (SELECT friend_id FROM friends WHERE user_id = %s)
+                                   GROUP BY u.username
+                                   """, conn, params=(user_id,))
+    df_me = pd.read_sql_query("""
+                              SELECT u.username, MAX(a.score) AS score
+                              FROM activity a
+                                       JOIN users u ON u.id = a.user_id
+                              WHERE a.user_id = %s
+                              GROUP BY u.username
+                              """, conn, params=(user_id,))
+    # Get my username
+    cursor = conn.cursor()
+    cursor.execute("SELECT username FROM users WHERE id=%s", (user_id,))
+    row = cursor.fetchone()
     conn.close()
-    return df.to_json(orient="records")
+    my_username = row[0] if row else ""
+    df_combined = pd.concat([df_friends, df_me], ignore_index=True)
+    df_combined = df_combined.drop_duplicates(subset="username")
+    df_combined = df_combined.sort_values("score", ascending=False).reset_index(drop=True)
+    result = df_combined.to_dict(orient="records")
+    for r in result:
+        r["is_me"] = (r["username"] == my_username)
+    return jsonify(result)
 
 
 # -------------------- ANALYZE --------------------
@@ -519,11 +610,10 @@ def leaderboard():
 def analyze():
     data = request.get_json(force=True)
     load_model()
-
     user_id = data.get("user_id")
     try:
         user_id = int(user_id)
-    except:
+    except Exception:
         return jsonify({"error": "Invalid user_id"}), 400
 
     screen = float(data.get("screen_time") or 0)
@@ -537,7 +627,6 @@ def analyze():
 
     text = data.get("text") or ""
     pred, prob = get_personality_prediction(text)
-
     score = calculate_score(screen, sleep, study, stress)
 
     DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -547,23 +636,41 @@ def analyze():
     date = datetime.now(ist).strftime("%Y-%m-%d")
     cursor.execute(
         "INSERT INTO activity (user_id, screen_time, sleep, study, stress, score, date) VALUES (%s,%s,%s,%s,%s,%s,%s)",
-        (user_id, screen, sleep, study, stress, score, date)
-    )
+        (user_id, screen, sleep, study, stress, score, date))
     conn.commit()
     df = pd.read_sql_query(
         "SELECT date, score FROM activity WHERE user_id=%s ORDER BY date",
-        conn, params=(user_id,)
-    )
+        conn, params=(user_id,))
     conn.close()
 
-    retrain_rf_with_db()
+    threading.Thread(target=retrain_rf_with_db, daemon=True).start()
 
     progress = 0
     if len(df) >= 2:
         progress = score - df.iloc[-2]["score"]
 
-    graph, trend, advice = generate_plot(user_id)
+    plot_result = generate_plot(user_id)
+    graph, trend, advice = plot_result if plot_result else (None, "Not enough data", "Keep going!")
     predicted = predict_score(df)
+
+    # Streak
+    streak_target = None
+    try:
+        conn2 = psycopg2.connect(os.environ.get("DATABASE_URL"))
+        cursor2 = conn2.cursor()
+        cursor2.execute("SELECT target FROM streak WHERE user_id=%s", (user_id,))
+        t = cursor2.fetchone()
+        conn2.close()
+        if t and t[0]:
+            streak_target = float(t[0])
+    except Exception:
+        pass
+
+    streak_info = {}
+    if streak_target is not None:
+        streak_info = update_streak(user_id, score, streak_target, date)
+
+    avg = get_user_average(user_id, days=7)
 
     return jsonify({
         "personality": pred,
@@ -574,7 +681,9 @@ def analyze():
         "graph": f"data:image/png;base64,{graph}" if graph else None,
         "trend": trend,
         "advice": advice,
-        "prediction": predicted
+        "prediction": predicted,
+        "streak": streak_info,
+        "avg": avg
     })
 
 
@@ -584,7 +693,6 @@ def home():
     return render_template("index.html")
 
 
-# -------------------- MAIN --------------------
 if __name__ == "__main__":
     load_rf_model()
     port = int(os.environ.get("PORT", 5000))

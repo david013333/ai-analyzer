@@ -22,11 +22,11 @@
         /* ── HEADER ── */
         .header {
             text-align: center;
-            padding: 20px 0 10px;
+            padding: 24px 0 12px;
         }
 
         .header h1 {
-            font-size: 26px;
+            font-size: 28px;
             background: linear-gradient(90deg, #a78bfa, #60a5fa);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -45,12 +45,13 @@
             display: flex;
             justify-content: center;
             gap: 8px;
-            margin: 18px 0 20px;
+            margin: 18px 0 22px;
+            flex-wrap: wrap;
         }
 
         .tab {
-            padding: 8px 20px;
-            border-radius: 20px;
+            padding: 9px 22px;
+            border-radius: 22px;
             border: 1px solid #2d2d4e;
             background: #1a1a2e;
             color: #9ca3af;
@@ -85,37 +86,36 @@
             background: #1a1a2e;
             border: 1px solid #2d2d4e;
             border-radius: 16px;
-            padding: 20px;
-            max-width: 480px;
+            padding: 22px;
+            max-width: 620px;
             margin: 0 auto 16px;
         }
 
         .card-title {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 700;
             color: #a78bfa;
             text-transform: uppercase;
             letter-spacing: 1px;
-            margin-bottom: 14px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         /* ── INPUTS ── */
         .input-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-
-        .input-wrap {
-            position: relative;
+            gap: 12px;
+            margin-bottom: 12px;
         }
 
         .input-wrap label {
             font-size: 11px;
             color: #6b7280;
             display: block;
-            margin-bottom: 4px;
+            margin-bottom: 5px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -123,7 +123,7 @@
 
         input[type="number"], input[type="text"], textarea {
             width: 100%;
-            padding: 10px 12px;
+            padding: 11px 14px;
             background: #0f0f1a;
             border: 1px solid #2d2d4e;
             border-radius: 10px;
@@ -137,20 +137,17 @@
         input[type="text"]:focus,
         textarea:focus {
             border-color: #7c3aed;
-            background: #12122a;
         }
 
         textarea {
-            width: 100%;
-            height: 80px;
+            height: 90px;
             resize: none;
-            margin-top: 10px;
         }
 
-        /* ── BUTTON ── */
+        /* ── BUTTONS ── */
         .btn {
             width: 100%;
-            padding: 12px;
+            padding: 13px;
             border: none;
             border-radius: 10px;
             background: linear-gradient(135deg, #7c3aed, #2563eb);
@@ -158,7 +155,7 @@
             font-weight: 700;
             font-size: 15px;
             cursor: pointer;
-            margin-top: 12px;
+            margin-top: 14px;
             transition: opacity 0.2s, transform 0.1s;
         }
 
@@ -174,7 +171,7 @@
         }
 
         .btn-sm {
-            padding: 8px 16px;
+            padding: 9px 16px;
             font-size: 13px;
             width: auto;
             margin-top: 0;
@@ -191,6 +188,12 @@
             background: #7c3aed22;
         }
 
+        .btn-danger {
+            background: transparent;
+            border: 1px solid #dc2626;
+            color: #f87171;
+        }
+
         /* ── WAKE BANNER ── */
         #wake-banner {
             background: #2d2200;
@@ -199,12 +202,10 @@
             padding: 8px 12px;
             font-size: 12px;
             color: #fbbf24;
-            margin-bottom: 12px;
+            margin: 0 auto 14px;
             text-align: center;
             display: none;
-            max-width: 480px;
-            margin-left: auto;
-            margin-right: auto;
+            max-width: 620px;
         }
 
         /* ── ERROR ── */
@@ -213,25 +214,41 @@
             font-size: 12px;
             margin-top: 8px;
             min-height: 16px;
-            text-align: center;
         }
 
         /* ── RESULT CARD ── */
         .result-card {
             background: #12122a;
             border: 1px solid #2d2d4e;
-            border-radius: 14px;
-            padding: 16px;
-            max-width: 480px;
+            border-radius: 16px;
+            padding: 22px;
+            max-width: 620px;
             margin: 0 auto 16px;
             display: none;
+        }
+
+        .score-big {
+            font-size: 52px;
+            font-weight: 800;
+            background: linear-gradient(90deg, #a78bfa, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+            line-height: 1.1;
+        }
+
+        .score-sub {
+            text-align: center;
+            font-size: 12px;
+            color: #6b7280;
+            margin: 4px 0 16px;
         }
 
         .result-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 0;
+            padding: 10px 0;
             border-bottom: 1px solid #1e1e38;
         }
 
@@ -253,7 +270,7 @@
         }
 
         .badge {
-            padding: 3px 10px;
+            padding: 4px 12px;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 700;
@@ -277,36 +294,160 @@
             border: 1px solid #05966944;
         }
 
-        .badge-red {
+        .divider {
+            height: 1px;
+            background: #2d2d4e;
+            margin: 14px 0;
+        }
+
+        .section-label {
+            font-size: 11px;
+            color: #6b7280;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .advice-pill {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #1e1e38;
+            border: 1px solid #2d2d4e;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #a78bfa;
+            margin: 3px;
+        }
+
+        #graph {
+            width: 100%;
+            border-radius: 10px;
+            margin-top: 14px;
+            display: none;
+        }
+
+        /* ── STREAK CARD ── */
+        .streak-card {
+            background: #1a1a2e;
+            border: 1px solid #2d2d4e;
+            border-radius: 16px;
+            padding: 20px;
+            max-width: 620px;
+            margin: 0 auto 16px;
+            display: none;
+        }
+
+        .streak-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .streak-fire {
+            font-size: 42px;
+            line-height: 1;
+        }
+
+        .streak-count {
+            font-size: 36px;
+            font-weight: 800;
+            color: #f59e0b;
+            line-height: 1;
+        }
+
+        .streak-label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        .streak-meta {
+            text-align: right;
+        }
+
+        .streak-meta span {
+            display: block;
+            font-size: 12px;
+            color: #9ca3af;
+            margin-bottom: 2px;
+        }
+
+        .streak-meta strong {
+            color: #e0e0ff;
+        }
+
+        /* Progress bar */
+        .progress-wrap {
+            margin: 10px 0 4px;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #6b7280;
+            margin-bottom: 6px;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #2d2d4e;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #f59e0b, #ef4444);
+            transition: width 0.6s ease;
+        }
+
+        .streak-status {
+            text-align: center;
+            font-size: 13px;
+            font-weight: 700;
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 8px;
+        }
+
+        .streak-status.hit {
+            background: #05966922;
+            color: #34d399;
+            border: 1px solid #05966944;
+        }
+
+        .streak-status.miss {
             background: #dc262622;
             color: #f87171;
             border: 1px solid #dc262644;
         }
 
-        .score-big {
-            font-size: 36px;
-            font-weight: 800;
-            background: linear-gradient(90deg, #a78bfa, #60a5fa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-align: center;
-            padding: 10px 0;
-        }
-
-        .score-sub {
-            text-align: center;
-            font-size: 12px;
+        .streak-status.notset {
+            background: #1e1e38;
             color: #6b7280;
-            margin-top: -6px;
-            margin-bottom: 8px;
         }
 
-        /* ── GRAPH ── */
-        #graph {
-            width: 100%;
-            border-radius: 10px;
-            margin-top: 10px;
-            display: none;
+        /* ── SET TARGET ── */
+        .target-row {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+            margin-top: 12px;
+        }
+
+        .target-row .input-wrap {
+            flex: 1;
+            margin: 0;
+        }
+
+        .target-row .input-wrap label {
+            margin-bottom: 5px;
         }
 
         /* ── FRIENDS ── */
@@ -324,7 +465,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 10px 12px;
+            padding: 11px 14px;
             background: #0f0f1a;
             border: 1px solid #2d2d4e;
             border-radius: 10px;
@@ -332,17 +473,17 @@
         }
 
         .friend-avatar {
-            width: 34px;
-            height: 34px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             background: linear-gradient(135deg, #7c3aed, #2563eb);
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: 700;
-            font-size: 14px;
+            font-size: 15px;
             color: white;
-            margin-right: 10px;
+            margin-right: 12px;
             flex-shrink: 0;
         }
 
@@ -366,18 +507,24 @@
         .lb-row {
             display: flex;
             align-items: center;
-            padding: 10px 12px;
+            padding: 11px 14px;
             background: #0f0f1a;
             border: 1px solid #2d2d4e;
             border-radius: 10px;
             margin-bottom: 8px;
             gap: 12px;
+            transition: border-color 0.2s;
+        }
+
+        .lb-row.is-me {
+            border-color: #7c3aed;
+            background: #1a0f2e;
         }
 
         .lb-rank {
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 800;
-            width: 28px;
+            width: 30px;
             text-align: center;
             flex-shrink: 0;
         }
@@ -396,6 +543,7 @@
 
         .lb-rank.other {
             color: #6b7280;
+            font-size: 13px;
         }
 
         .lb-name {
@@ -413,14 +561,32 @@
             -webkit-text-fill-color: transparent;
         }
 
+        .lb-you {
+            font-size: 10px;
+            background: #7c3aed22;
+            color: #a78bfa;
+            border: 1px solid #7c3aed44;
+            padding: 2px 7px;
+            border-radius: 10px;
+            font-weight: 700;
+            margin-left: 6px;
+        }
+
+        .lb-gap {
+            font-size: 11px;
+            color: #6b7280;
+            margin-left: 6px;
+            white-space: nowrap;
+        }
+
         .lb-empty {
             text-align: center;
             color: #6b7280;
             font-size: 13px;
-            padding: 20px;
+            padding: 24px;
         }
 
-        /* ── SUCCESS TOAST ── */
+        /* ── TOAST ── */
         .toast {
             position: fixed;
             bottom: 24px;
@@ -428,32 +594,13 @@
             transform: translateX(-50%);
             background: #059669;
             color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
+            padding: 10px 22px;
+            border-radius: 22px;
             font-size: 13px;
             font-weight: 600;
             display: none;
             z-index: 999;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-        }
-
-        /* ── DIVIDER ── */
-        .divider {
-            height: 1px;
-            background: #2d2d4e;
-            margin: 14px 0;
-        }
-
-        /* ── ADVICE ── */
-        .advice-pill {
-            display: inline-block;
-            padding: 4px 12px;
-            background: #1e1e38;
-            border: 1px solid #2d2d4e;
-            border-radius: 20px;
-            font-size: 12px;
-            color: #a78bfa;
-            margin: 3px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
         }
     </style>
 </head>
@@ -464,18 +611,19 @@
     <p id="welcome-text">Welcome back!</p>
 </div>
 
-<!-- Wake Banner -->
 <div id="wake-banner">⏳ Server waking up, please wait...</div>
 
 <!-- TABS -->
 <div class="tabs">
-    <div class="tab active" onclick="switchTab('analyze')">📊 Analyze</div>
-    <div class="tab" onclick="switchTab('friends')">👥 Friends</div>
-    <div class="tab" onclick="switchTab('leaderboard')">🏆 Leaderboard</div>
+    <div class="tab active" onclick="switchTab('analyze',    this)">📊 Analyze</div>
+    <div class="tab" onclick="switchTab('friends',    this)">👥 Friends</div>
+    <div class="tab" onclick="switchTab('leaderboard',this)">🏆 Leaderboard</div>
 </div>
 
-<!-- ══════════ ANALYZE PANEL ══════════ -->
+<!-- ══════════ ANALYZE ══════════ -->
 <div id="panel-analyze" class="panel active">
+
+    <!-- Input card -->
     <div class="card">
         <div class="card-title">📝 Today's Input</div>
         <div class="input-grid">
@@ -504,7 +652,45 @@
         <button class="btn" id="analyzeBtn" onclick="analyze()">Analyze</button>
     </div>
 
-    <!-- Result -->
+    <!-- Streak card (shown after analyze if target is set) -->
+    <div class="streak-card" id="streak-card">
+        <div class="card-title">🔥 Daily Streak</div>
+        <div class="streak-top">
+            <div>
+                <div class="streak-count" id="streak-count">0</div>
+                <div class="streak-label">day streak</div>
+            </div>
+            <div class="streak-meta">
+                <span>🏆 Longest: <strong id="streak-longest">0</strong> days</span>
+                <span>🎯 Target: <strong id="streak-target-val">--</strong></span>
+                <span>📊 7-day avg: <strong id="streak-avg-val">--</strong></span>
+            </div>
+        </div>
+        <div class="progress-wrap">
+            <div class="progress-label">
+                <span id="streak-avg-label">Avg</span>
+                <span id="streak-target-label">Target</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="streak-progress-fill" style="width:0%"></div>
+            </div>
+        </div>
+        <div class="streak-status notset" id="streak-status">Set a target below to start your streak!</div>
+
+        <!-- Set target -->
+        <div class="divider"></div>
+        <div class="section-label">Set / Change Target Score</div>
+        <div class="target-row">
+            <div class="input-wrap">
+                <label>New Target (must be > your 7-day avg)</label>
+                <input id="target-input" type="number" min="0" max="100" placeholder="e.g. 40">
+            </div>
+            <button class="btn btn-sm" onclick="setTarget()" style="margin-bottom:0;">Set</button>
+        </div>
+        <div class="error-msg" id="target-error"></div>
+    </div>
+
+    <!-- Result card -->
     <div class="result-card" id="result-card">
         <div class="score-big" id="score-big">--</div>
         <div class="score-sub">Wellness Score</div>
@@ -526,24 +712,20 @@
             <span class="result-value" id="res-trend">--</span>
         </div>
         <div class="result-row">
-            <span class="result-label">Tomorrow</span>
+            <span class="result-label">Tomorrow Prediction</span>
             <span class="badge badge-blue" id="res-prediction">--</span>
         </div>
         <div class="divider"></div>
-        <div style="font-size:12px; color:#6b7280; margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:1px;">
-            Advice
-        </div>
+        <div class="section-label">Advice</div>
         <div id="res-advice"></div>
         <div class="divider"></div>
-        <div style="font-size:12px; color:#6b7280; margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:1px;">
-            Suggestion
-        </div>
+        <div class="section-label">Suggestion</div>
         <div style="font-size:13px; color:#a78bfa;" id="res-suggestion"></div>
-        <img id="graph" width="100%">
+        <img id="graph">
     </div>
 </div>
 
-<!-- ══════════ FRIENDS PANEL ══════════ -->
+<!-- ══════════ FRIENDS ══════════ -->
 <div id="panel-friends" class="panel">
     <div class="card">
         <div class="card-title">🔍 Add Friend</div>
@@ -553,31 +735,28 @@
         </div>
         <div class="error-msg" id="friend-error"></div>
     </div>
-
     <div class="card">
         <div class="card-title">👥 My Friends</div>
         <div id="friends-list">
-            <div class="lb-empty">No friends yet. Search and add friends above!</div>
+            <div class="lb-empty">No friends yet. Add someone above!</div>
         </div>
     </div>
 </div>
 
-<!-- ══════════ LEADERBOARD PANEL ══════════ -->
+<!-- ══════════ LEADERBOARD ══════════ -->
 <div id="panel-leaderboard" class="panel">
     <div class="card">
         <div class="card-title">🏆 Friends Leaderboard</div>
         <div id="leaderboard-list">
             <div class="lb-empty">Add friends to see leaderboard!</div>
         </div>
-        <button class="btn btn-outline" style="margin-top:12px;" onclick="loadLeaderboard()">🔄 Refresh</button>
+        <button class="btn btn-outline" style="margin-top:14px;" onclick="loadLeaderboard()">🔄 Refresh</button>
     </div>
 </div>
 
-<!-- Toast -->
 <div class="toast" id="toast"></div>
 
 <script>
-    // ── INIT ──
     const user_id = localStorage.getItem("user_id");
     const username = localStorage.getItem("username") || "User";
 
@@ -588,19 +767,20 @@
 
     document.getElementById("welcome-text").innerText = `Welcome, ${username}!`;
 
-    // Wake server
+    // Wake server ping
     window.addEventListener("load", () => {
         const banner = document.getElementById("wake-banner");
         banner.style.display = "block";
         fetch("/").then(() => banner.style.display = "none")
             .catch(() => banner.style.display = "none");
+        loadStreakOnly(); // load streak on page open
     });
 
     // ── TABS ──
-    function switchTab(tab) {
+    function switchTab(tab, el) {
         document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
         document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
-        event.target.classList.add("active");
+        el.classList.add("active");
         document.getElementById("panel-" + tab).classList.add("active");
         if (tab === "friends") loadFriends();
         if (tab === "leaderboard") loadLeaderboard();
@@ -612,7 +792,89 @@
         t.innerText = msg;
         t.style.background = color;
         t.style.display = "block";
-        setTimeout(() => t.style.display = "none", 2500);
+        setTimeout(() => t.style.display = "none", 2800);
+    }
+
+    // ── RENDER STREAK ──
+    function renderStreak(streak, avg) {
+        const card = document.getElementById("streak-card");
+        card.style.display = "block";
+
+        document.getElementById("streak-count").innerText = streak.current_streak ?? 0;
+        document.getElementById("streak-longest").innerText = streak.longest_streak ?? 0;
+        document.getElementById("streak-target-val").innerText = streak.target != null ? streak.target : "--";
+        document.getElementById("streak-avg-val").innerText = avg != null ? avg : "--";
+
+        // Progress bar: fill = today score relative to target
+        // We store last score in streak response (not always present), so use avg as proxy
+        const target = streak.target;
+        if (target && avg != null) {
+            document.getElementById("streak-avg-label").innerText = `Avg: ${avg}`;
+            document.getElementById("streak-target-label").innerText = `Target: ${target}`;
+            // fill based on avg vs target
+            const pct = Math.min(100, Math.round((avg / target) * 100));
+            document.getElementById("streak-progress-fill").style.width = pct + "%";
+        }
+
+        // Status message
+        const statusEl = document.getElementById("streak-status");
+        if (streak.target == null) {
+            statusEl.className = "streak-status notset";
+            statusEl.innerText = "Set a target below to start your streak! 🎯";
+        } else if (streak.hit === true) {
+            statusEl.className = "streak-status hit";
+            statusEl.innerText = streak.already_done_today
+                ? `✅ Already hit today! Streak: ${streak.current_streak} 🔥`
+                : `✅ Target hit! Streak continues — ${streak.current_streak} day${streak.current_streak !== 1 ? 's' : ''}! 🔥`;
+        } else if (streak.hit === false && streak.target != null) {
+            statusEl.className = "streak-status miss";
+            statusEl.innerText = `❌ Streak broken! Score was below target (${streak.target}). Start again tomorrow!`;
+        }
+    }
+
+    // ── LOAD STREAK ONLY (on page load) ──
+    async function loadStreakOnly() {
+        try {
+            const res = await fetch("/get_streak", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({user_id: parseInt(user_id)})
+            });
+            const data = await res.json();
+            if (!data.error) {
+                renderStreak(data, data.avg);
+                document.getElementById("streak-card").style.display = "block";
+            }
+        } catch (e) {
+        }
+    }
+
+    // ── SET TARGET ──
+    async function setTarget() {
+        const targetVal = document.getElementById("target-input").value.trim();
+        const errorEl = document.getElementById("target-error");
+        errorEl.innerText = "";
+        if (!targetVal) {
+            errorEl.innerText = "⚠️ Enter a target score.";
+            return;
+        }
+        try {
+            const res = await fetch("/set_target", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({user_id: parseInt(user_id), target: parseFloat(targetVal)})
+            });
+            const data = await res.json();
+            if (data.error) {
+                errorEl.innerText = "❌ " + data.error;
+                return;
+            }
+            document.getElementById("target-input").value = "";
+            showToast("🎯 Target set! Streak reset — start fresh today!");
+            loadStreakOnly();
+        } catch (e) {
+            errorEl.innerText = "❌ Could not reach server.";
+        }
     }
 
     // ── ANALYZE ──
@@ -661,15 +923,12 @@
                 return;
             }
 
-            // Show result card
-            const card = document.getElementById("result-card");
-            card.style.display = "block";
-
+            // ── Result card ──
+            document.getElementById("result-card").style.display = "block";
             document.getElementById("score-big").innerText = data.score;
             document.getElementById("res-personality").innerText = data.personality;
             document.getElementById("res-confidence").innerText = data.confidence + "%";
 
-            // Progress badge
             const prog = data.progress;
             const progEl = document.getElementById("res-progress");
             if (prog > 0) {
@@ -687,7 +946,6 @@
             document.getElementById("res-prediction").innerText = data.prediction != null ? "~" + data.prediction : "--";
             document.getElementById("res-suggestion").innerText = data.suggestion || "";
 
-            // Advice pills
             const adviceEl = document.getElementById("res-advice");
             adviceEl.innerHTML = "";
             if (data.advice) {
@@ -699,7 +957,6 @@
                 });
             }
 
-            // Graph
             const graphEl = document.getElementById("graph");
             if (data.graph) {
                 graphEl.src = data.graph;
@@ -708,12 +965,18 @@
                 graphEl.style.display = "none";
             }
 
+            // ── Streak card ──
+            if (data.streak && Object.keys(data.streak).length > 0) {
+                renderStreak(data.streak, data.avg);
+            } else {
+                loadStreakOnly();
+            }
+
             showToast("✅ Analysis complete!");
-            card.scrollIntoView({behavior: "smooth", block: "start"});
+            document.getElementById("result-card").scrollIntoView({behavior: "smooth", block: "start"});
 
         } catch (err) {
             errorEl.innerText = "❌ Could not reach server. Please try again.";
-            console.error(err);
         } finally {
             btn.disabled = false;
             btn.innerText = "Analyze";
@@ -726,16 +989,14 @@
         const errorEl = document.getElementById("friend-error");
         const friendUsername = input.value.trim().toLowerCase();
         errorEl.innerText = "";
-
         if (!friendUsername) {
             errorEl.innerText = "⚠️ Enter a username.";
             return;
         }
         if (friendUsername === username.toLowerCase()) {
-            errorEl.innerText = "⚠️ You cannot add yourself!";
+            errorEl.innerText = "⚠️ Cannot add yourself!";
             return;
         }
-
         try {
             const res = await fetch("/add_friend", {
                 method: "POST",
@@ -743,7 +1004,6 @@
                 body: JSON.stringify({user_id: parseInt(user_id), friend_username: friendUsername})
             });
             const data = await res.json();
-
             if (data.error) {
                 errorEl.innerText = "❌ " + data.error;
                 return;
@@ -752,12 +1012,10 @@
                 errorEl.innerText = "❌ User not found.";
                 return;
             }
-
             input.value = "";
             showToast("✅ Friend added!");
             loadFriends();
-
-        } catch (err) {
+        } catch {
             errorEl.innerText = "❌ Could not reach server.";
         }
     }
@@ -766,7 +1024,6 @@
     async function loadFriends() {
         const list = document.getElementById("friends-list");
         list.innerHTML = '<div class="lb-empty">Loading...</div>';
-
         try {
             const res = await fetch("/get_friends", {
                 method: "POST",
@@ -774,27 +1031,25 @@
                 body: JSON.stringify({user_id: parseInt(user_id)})
             });
             const data = await res.json();
-
             if (!data.friends || data.friends.length === 0) {
                 list.innerHTML = '<div class="lb-empty">No friends yet. Add someone above!</div>';
                 return;
             }
-
             list.innerHTML = "";
             data.friends.forEach(f => {
                 const div = document.createElement("div");
                 div.className = "friend-item";
                 div.innerHTML = `
-                <div class="friend-avatar">${f.username[0].toUpperCase()}</div>
-                <div class="friend-info">
-                    <div class="friend-name">${f.username}</div>
-                    <div class="friend-sub">Best score: ${f.best_score ?? "--"}</div>
-                </div>
-                <button class="btn btn-sm btn-outline" onclick="removeFriend(${f.friend_id}, this)">Remove</button>
-            `;
+                    <div class="friend-avatar">${f.username[0].toUpperCase()}</div>
+                    <div class="friend-info">
+                        <div class="friend-name">${f.username}</div>
+                        <div class="friend-sub">Best score: ${f.best_score != null ? f.best_score.toFixed(1) : "--"}</div>
+                    </div>
+                    <button class="btn btn-sm btn-danger" onclick="removeFriend(${f.friend_id}, this)">Remove</button>
+                `;
                 list.appendChild(div);
             });
-        } catch (err) {
+        } catch {
             list.innerHTML = '<div class="lb-empty">❌ Could not load friends.</div>';
         }
     }
@@ -804,12 +1059,11 @@
         btn.disabled = true;
         btn.innerText = "...";
         try {
-            const res = await fetch("/remove_friend", {
+            await fetch("/remove_friend", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({user_id: parseInt(user_id), friend_id})
             });
-            const data = await res.json();
             showToast("✅ Friend removed!");
             loadFriends();
         } catch {
@@ -822,7 +1076,6 @@
     async function loadLeaderboard() {
         const list = document.getElementById("leaderboard-list");
         list.innerHTML = '<div class="lb-empty">Loading...</div>';
-
         try {
             const res = await fetch("/leaderboard", {
                 method: "POST",
@@ -830,27 +1083,45 @@
                 body: JSON.stringify({user_id: parseInt(user_id)})
             });
             const data = await res.json();
-
             if (!Array.isArray(data) || data.length === 0) {
                 list.innerHTML = '<div class="lb-empty">Add friends to see leaderboard!</div>';
                 return;
             }
 
-            const medals = ["gold", "silver", "bronze"];
+            // Find my score for gap calculation
+            const myRow = data.find(r => r.is_me);
+            const myScore = myRow ? myRow.score : null;
+            const topScore = data[0].score;
+
             list.innerHTML = "";
+            const medals = ["gold", "silver", "bronze"];
+
             data.forEach((row, i) => {
                 const rankClass = medals[i] || "other";
                 const rankIcon = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`;
+                const isMeClass = row.is_me ? " is-me" : "";
+                const youBadge = row.is_me ? '<span class="lb-you">YOU</span>' : "";
+
+                // Gap indicator for non-top positions
+                let gapHtml = "";
+                if (!row.is_me && myScore != null && row.score > myScore) {
+                    const gap = (row.score - myScore).toFixed(1);
+                    gapHtml = `<span class="lb-gap">+${gap} ahead</span>`;
+                } else if (row.is_me && i > 0) {
+                    const gap = (topScore - myScore).toFixed(1);
+                    gapHtml = gap > 0 ? `<span class="lb-gap">${gap} behind 🏆</span>` : "";
+                }
+
                 const div = document.createElement("div");
-                div.className = "lb-row";
+                div.className = "lb-row" + isMeClass;
                 div.innerHTML = `
-                <div class="lb-rank ${rankClass}">${rankIcon}</div>
-                <div class="lb-name">${row.username}</div>
-                <div class="lb-score">${row.score?.toFixed(1) ?? "--"}</div>
-            `;
+                    <div class="lb-rank ${rankClass}">${rankIcon}</div>
+                    <div class="lb-name">${row.username}${youBadge}${gapHtml}</div>
+                    <div class="lb-score">${row.score != null ? row.score.toFixed(1) : "--"}</div>
+                `;
                 list.appendChild(div);
             });
-        } catch (err) {
+        } catch {
             list.innerHTML = '<div class="lb-empty">❌ Could not load leaderboard.</div>';
         }
     }
